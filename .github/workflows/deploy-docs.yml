@@ -1,0 +1,64 @@
+# 中文文档站点（mdBook）构建与部署 —— 独立文档仓库，推送 main 即部署。
+# 站点 URL：https://deerluuu.github.io/deer-gui-docs/ （由 book.toml 的 site-url=/deer-gui-docs/ 匹配）
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# GitHub Pages 的权限模型（Actions 版部署必需）
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只允许一个部署在跑；不取消进行中的那次（避免半成品站点）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 mdBook（固定版本，构建可复现）
+        uses: taiki-e/install-action@v2
+        with:
+          tool: mdbook@0.4.40
+
+      - name: 构建文档
+        run: mdbook build
+        # create-missing = false：SUMMARY.md 链接到不存在的文件会直接构建失败（防 404 章节）
+
+      - name: 检查产物并补 .nojekyll
+        run: |
+          test -f book/index.html || { echo "构建产物缺 index.html"; exit 1; }
+          # GitHub Pages 默认用 Jekyll 处理：以下划线开头的目录（mdBook 的字体/主题资源）
+          # 会被静默丢弃。放一个 .nojekyll 关掉 Jekyll，站点才能按静态文件原样访问。
+          touch book/.nojekyll
+
+      # 首次运行时自动把 Pages 站点创建为 "GitHub Actions" 构建来源；已启用则为幂等操作
+      - name: 配置 GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: book
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

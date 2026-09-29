@@ -1,0 +1,5 @@
+# book/ 是 mdbook build 的产物（由 CI 构建部署，不入库）
+/book/
+
+# WorkBuddy 工作区数据（本地记忆/技能等，机器本地文件，不入库）
+.workbuddy/
