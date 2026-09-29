@@ -26,6 +26,8 @@ git-repository-url = "https://github.com/DeerLuuu/deer-gui"
 git-repository-icon = "fa-github"
 # 「建议编辑」链接指向本文档仓库的源文件（src/ 在仓库根，故无 docs/ 前缀）。
 edit-url-template = "https://github.com/DeerLuuu/deer-gui-docs/edit/main/{path}"
+# 顶栏语言切换器（简体/繁體/English 三版书共用；见 build-all.sh）
+additional-js = ["theme/lang-switcher.js"]
 
 [output.html.search]
 enable = true
