@@ -36,6 +36,7 @@
 | `focus` | `Option<String>` | 鍵盤焦點（`Tab` 改它，`Escape` 清它） |
 | `pressed` | `Option<String>` | 被左鍵按下的節點 |
 | `texts` | `BTreeMap<String, String>` | 輸入框文字緩衝（不在表裡 = 空字串） |
+| `carets` | `BTreeMap<String, usize>` | 輸入框游標（id → 位置，單位是**字元**不是位元組；不在表裡 = 末尾，純增量欄位） |
 | `scroll` | `ScrollState` | 捲動狀態（偏移 + 上限，見下） |
 
 `same_visual(&other)`：三個視覺欄位（hover/focus/pressed）是否完全一樣 ——
@@ -56,7 +57,7 @@
 | `HoverChanged(Option<String>)` | 懸停變了 |
 | `FocusChanged(Option<String>)` | 焦點變了 |
 | `Clicked(String)` | 點擊完成（抬起處 == 按下處；`Enter` 鍵啟用也算） |
-| `TextChanged { id, value }` | 輸入框內容變了（追加 / Backspace 刪一個 Unicode 字元） |
+| `TextChanged { id, value }` | 輸入框內容變了（在游標處插入 / Backspace 刪游標前一個 Unicode 字元） |
 | `Scrolled { id, offset }` | 捲動偏移變了（夾取後的整數值；到頂/到底再滾不發） |
 
 **有事件 = 狀態變了 = 需要重繪**（視窗層的 dirty 約定）。
@@ -84,11 +85,12 @@
 | `KeyDown { Tab }` | 樹序循環焦點（`Shift` 反向）；只有一個可聚焦時停在原地 |
 | `KeyDown { Escape }` | 清焦點 |
 | `KeyDown { Enter }` | 焦點在**啟用**的按鈕 ⇒ `Clicked` |
-| `KeyDown { Backspace }` | 焦點是**啟用**的輸入框 ⇒ 刪一個 Unicode 字元 |
-| `TextInput` | 焦點是**啟用**的輸入框 ⇒ 追加 |
+| `KeyDown { Backspace }` | 焦點是**啟用**的輸入框 ⇒ 刪**游標前**那一個 Unicode 字元（取字元邊界，不切半個中文字；刪完游標退一格） |
+| `TextInput` | 焦點是**啟用**的輸入框 ⇒ **插在游標處**，插完游標前進（沒動過游標時它在末尾 ⇒ 連續打字表現與純附加一致） |
+| `KeyDown { Left / Right }` | 焦點是**啟用**的輸入框 ⇒ 移動游標（兩端夾在 `[0, 字元數]`；**不發事件** —— `TextChanged` 的語意是「值變了」，游標移動沒改值） |
 | `FocusChanged { false }` | 視窗失焦：清 `hover`/`pressed`（`focus`/`texts` 不動） |
 | `Wheel { dy }` | `hover` 最近的可捲動祖先（含自身）偏移 `-dy × 40`，夾取，變了才發 `Scrolled` |
-| 其餘（右/中鍵、方向鍵、`KeyUp`、按鍵重複…） | 本期不消費（匹配是**窮盡**的：新增事件變體會編譯報錯，不會靜默忽略） |
+| 其餘（右/中鍵、上下方向鍵、`KeyUp`、按鍵重複…） | 本期不消費（匹配是**窮盡**的：新增事件變體會編譯報錯，不會靜默忽略） |
 
 ## 使用範例
 
@@ -118,4 +120,7 @@ assert!(matches!(events.first(), Some(_)) == (state.hover.is_some()));
 - `ClipSnapshot` 的 `allows` 對未知 id 放行（fail-open）：**測試裡必須先斷言 `is_known(id)`**，
   否則「被裁掉不命中」可能只是快照裡沒這個 id；
 - 視窗層與測試腳本共用同一個 `handle`（腳本重放走同一入口），所以「腳本跑得通」與
-  「人手點得動」不可能漂。
+  「人手點得動」不可能漂；
+- 游標單位是**字元**：`蘋果x` 是 3 字元 / 7 位元組，按位元組表達會把多位元組字元從中間切開；
+- 目前**沒有任何東西渲染游標**，所以左右移動游標不發事件；真開始畫游標時，按
+  `ScrollState` 的先例補 `UiEvent::CaretChanged` 並把 `carets` 加進 `same_visual`（登記在案的延遲決策）。

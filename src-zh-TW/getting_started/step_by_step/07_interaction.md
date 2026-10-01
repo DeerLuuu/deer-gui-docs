@@ -10,7 +10,7 @@
 2. 維護一個 `UiState`（互動狀態的唯一真相），把每條 `InputEvent` 餵給 `interaction::handle`。
 3. `handle` 回傳一串 `UiEvent` —— **有事件 = 狀態變了 = 需要重繪**；不發事件但改了 `pressed` 這類情況用 `UiState::same_visual` 兜底比對。
 4. 事件用 **id** 關聯：`UiEvent::Clicked(id)` 告訴你點的是誰，樹裡沒有回呼可註冊。
-5. 輸入框文字在 `state.texts`（id → 內容）；不在表裡的輸入框視為空字串。
+5. 輸入框文字在 `state.texts`（id → 內容），游標在 `state.carets`（id → **字元位**，不在表裡 = 末尾）；不在 `texts` 表裡的輸入框視為空字串。
 
 ## 完整範例
 
@@ -56,12 +56,13 @@ impl Counter {
 | `KeyDown { Tab }` | 樹序循環焦點（`Shift` 反向）⇒ `FocusChanged` |
 | `KeyDown { Escape }` | 清焦點 |
 | `KeyDown { Enter }` | 焦點在啟用的按鈕上 ⇒ `Clicked`（鍵啟動 = 點擊） |
-| `KeyDown { Backspace }` | 焦點是啟用的輸入框 ⇒ 刪**一個 Unicode 字元** |
-| `TextInput` | 焦點是啟用的輸入框 ⇒ 附加文字 |
+| `KeyDown { Backspace }` | 焦點是啟用的輸入框 ⇒ 刪**游標前**一個 Unicode 字元（游標退一格） |
+| `TextInput` | 焦點是啟用的輸入框 ⇒ **插在游標處**（沒動過游標時它在末尾） |
+| `KeyDown { Left / Right }` | 焦點是啟用的輸入框 ⇒ 移動游標，**不發事件** |
 | `FocusChanged { focused: false }` | 視窗失焦：清 `hover` / `pressed`（`focus` / `texts` 不動） |
 | `Wheel { dy }` | `hover` 最近的可捲動祖先偏移 `-dy × 40px`（見第 8 步） |
 
-只有**狀態真的變了**才產出事件。右鍵 / 中鍵、方向鍵、按鍵重複、IME 預編輯本期不消費（詳見[已知邊界](../../advanced/pitfalls.md)）。
+只有**狀態真的變了**才產出事件。右鍵 / 中鍵、上下方向鍵、按鍵重複、IME 預編輯本期不消費（左右方向鍵已在輸入框內移動游標，見上表；詳見[已知邊界](../../advanced/pitfalls.md)）。
 
 ## 命中測試的語義
 

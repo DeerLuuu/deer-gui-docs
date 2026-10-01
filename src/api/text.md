@@ -72,7 +72,8 @@ let fb = renderer.render(Extent { width: 320, height: 200 }, &list, theme.surfac
 - `FontMeasure::width` 忽略 `TextStyle.font_size`（字号来自构造时的 `font_size`），
   自己拼路径时别指望改 `TextStyle` 就能换字号；
 - **hinting 不做**（有实测依据：最省的 hinting-lite 没有净收益）；亚像素水平定位是光栅化层的
-  opt-in 路径，默认仍整数落位；
+  opt-in 路径，默认仍整数落位 —— 且已**决定不接线**进文本引擎（实测落位误差改善约 4 倍，
+  但边缘锐度代价更高 ⇒ 无净视觉收益；将来做 LCD 子像素或高 DPI 半像素落位时再评估）；
 - 中文字形：图集按需光栅化、带缓存，但**字体文件本身必须含所需字形** ——
   系统字体探测只认三款西文字体，中文界面请显式传中文字体路径；
 - 换行细节（中文按字符硬切等）见[第 8 步](../getting_started/step_by_step/08_scroll_wrap.md)。

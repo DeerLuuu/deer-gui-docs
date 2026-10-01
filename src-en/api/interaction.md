@@ -36,6 +36,7 @@ Companions: `PointerButton::{Left, Right, Middle}`; `Mods { shift, ctrl, alt, su
 | `focus` | `Option<String>` | Keyboard focus (`Tab` changes it, `Escape` clears it) |
 | `pressed` | `Option<String>` | The node pressed by the left button |
 | `texts` | `BTreeMap<String, String>` | Input field text buffers (absent from the map = empty string) |
+| `carets` | `BTreeMap<String, usize>` | Input caret (id → position, measured in **characters**, not bytes; absent from the map = end of text; a purely additive field) |
 | `scroll` | `ScrollState` | Scroll state (offsets + caps, see below) |
 
 `same_visual(&other)`: whether the three visual fields (hover/focus/pressed) are completely identical —
@@ -56,7 +57,7 @@ cases like `PointerDown`, which changes `pressed` without emitting an event, rel
 | `HoverChanged(Option<String>)` | Hover changed |
 | `FocusChanged(Option<String>)` | Focus changed |
 | `Clicked(String)` | A click completed (release point == press point; `Enter` activation counts too) |
-| `TextChanged { id, value }` | Input field content changed (append / Backspace deletes one Unicode character) |
+| `TextChanged { id, value }` | Input field content changed (inserted at the caret / Backspace deletes the Unicode character before the caret) |
 | `Scrolled { id, offset }` | Scroll offset changed (the clamped integer value; scrolling past top/bottom emits nothing) |
 
 **An event = state changed = a redraw is needed** (the window layer's dirty convention).
@@ -84,11 +85,12 @@ Each node's **effective clip** (nested `PushClip`s already intersected):
 | `KeyDown { Tab }` | Cycles focus in tree order (`Shift` reverses); with a single focusable it stays put |
 | `KeyDown { Escape }` | Clears focus |
 | `KeyDown { Enter }` | Focus on an **enabled** button ⇒ `Clicked` |
-| `KeyDown { Backspace }` | Focus is an **enabled** field ⇒ deletes one Unicode character |
-| `TextInput` | Focus is an **enabled** field ⇒ appends |
+| `KeyDown { Backspace }` | Focus is an **enabled** field ⇒ deletes the Unicode character **before the caret** — always on a char boundary, never splits a multi-byte character; the caret moves back one position |
+| `TextInput` | Focus is an **enabled** field ⇒ **inserts at the caret** and advances it; an untouched caret sits at the end, so plain typing behaves exactly like before |
+| `KeyDown { Left / Right }` | Focus is an **enabled** field ⇒ moves the caret (clamped to `[0, char_count]`); **emits no event** — `TextChanged` means "the value changed", and moving the caret doesn't |
 | `FocusChanged { false }` | Window lost focus: clears `hover`/`pressed` (`focus`/`texts` untouched) |
 | `Wheel { dy }` | Offsets the nearest scrollable ancestor of `hover` (including itself) by `-dy × 40`, clamped; emits `Scrolled` only on change |
-| The rest (right/middle buttons, arrow keys, `KeyUp`, key repeat…) | Not consumed at this stage (matching is **exhaustive**: adding an event variant becomes a compile error, never a silent ignore) |
+| The rest (right/middle buttons, Up/Down arrow keys, `KeyUp`, key repeat…) | Not consumed at this stage (matching is **exhaustive**: adding an event variant becomes a compile error, never a silent ignore) |
 
 ## Example
 
@@ -118,4 +120,7 @@ assert!(matches!(events.first(), Some(_)) == (state.hover.is_some()));
 - `ClipSnapshot`'s `allows` passes unknown ids (fail-open): **tests must assert `is_known(id)` first**,
   otherwise "clipped away, no hit" may just mean the id was missing from the snapshot;
 - The window layer and test scripts share the same `handle` (script replay goes through the same entry point), so "the script passes" and
-  "a human can click it" can never drift apart.
+  "a human can click it" can never drift apart;
+- The caret is measured in **characters**: `苹果x` is 3 chars / 7 bytes; byte-based indexing would split a multi-byte character in half;
+- Nothing renders the caret yet, which is why moving it emits no event; once it gets rendered, a `UiEvent::CaretChanged` will be added and
+  `carets` included in `same_visual`, following the `ScrollState` precedent — a deferred decision, registered as such.

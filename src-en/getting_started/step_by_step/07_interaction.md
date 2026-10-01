@@ -10,7 +10,7 @@ Connect the window layer's input events into the **interaction layer**: hit test
 2. Maintain a `UiState` (the single source of truth for interaction state) and feed every `InputEvent` to `interaction::handle`.
 3. `handle` returns a list of `UiEvent`s — **an event = state changed = redraw needed**; for cases like "no event emitted but `pressed` changed", fall back to the `UiState::same_visual` comparison.
 4. Events are associated by **id**: `UiEvent::Clicked(id)` tells you who was clicked; there are no callbacks to register in the tree.
-5. Input-field text lives in `state.texts` (id → content); a field not in the map is treated as an empty string.
+5. Input text lives in `state.texts` (id → content) and the caret in `state.carets` (id → position in **characters**, absent = end of text); a field missing from `texts` counts as empty.
 
 ## Complete example
 
@@ -56,12 +56,13 @@ impl Counter {
 | `KeyDown { Tab }` | Cycles focus in tree order (`Shift` reverses) ⇒ `FocusChanged` |
 | `KeyDown { Escape }` | Clears focus |
 | `KeyDown { Enter }` | Focus on an enabled button ⇒ `Clicked` (keyboard activation = click) |
-| `KeyDown { Backspace }` | Focus is an enabled field ⇒ delete **one Unicode character** |
-| `TextInput` | Focus is an enabled field ⇒ append the text |
+| `KeyDown { Backspace }` | Focus is an enabled field ⇒ deletes the Unicode character **before the caret** (caret moves back) |
+| `TextInput` | Focus is an enabled field ⇒ **inserts at the caret** (which sits at the end unless moved) |
+| `KeyDown { Left / Right }` | Focus is an enabled field ⇒ moves the caret, **emits no event** |
 | `FocusChanged { focused: false }` | Window lost focus: clears `hover` / `pressed` (`focus` / `texts` untouched) |
 | `Wheel { dy }` | Scrolls the nearest scrollable ancestor of `hover` by `-dy × 40px` (see Step 8) |
 
-Events are only produced when **state really changed**. Right / middle mouse buttons, arrow keys, key repeat and IME pre-edit are not consumed in this phase (see [Known Limits](../../advanced/pitfalls.md) for details).
+Events are only produced when **state really changed**. Right / middle mouse buttons, Up/Down arrow keys, key repeat and IME pre-edit are not consumed in this phase (Left/Right arrow keys now move the caret inside an input field, see the table above; see [Known Limits](../../advanced/pitfalls.md) for details).
 
 ## Hit-testing semantics
 

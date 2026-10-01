@@ -29,9 +29,9 @@ Both paths produce the **structurally identical** tree — this is the core inva
 | Writing pixels to a PNG file | ✅ |
 | **Real font glyphs** (zero-dependency TTF parsing + rasterization + atlas + real metrics) | ✅ |
 | Rendering to a window / on screen (Vulkan, shapes + text) | ✅ requires the `window` feature |
-| Input and focus (hover / click / `Tab` focus / text input / script replay / event-driven redraws) | ✅ |
+| Input and focus (hover / click / `Tab` focus / text input / **input caret** / script replay / event-driven redraws) | ✅ |
 | Wheel-driven vertical scrolling, text wrapping to width | ✅ |
-| Docking panels / multi-window, right / middle mouse buttons, arrow-key navigation, IME pre-edit | ⬜ Not implemented |
+| Docking panels / multi-window, right / middle mouse buttons, arrow-key navigation **between widgets**, IME pre-edit | ⬜ Not implemented |
 
 Platform support: layout / CPU rasterization / PNG output / Vulkan offscreen work on every platform; **the window layer is currently Windows only** (Linux / macOS return an explicit "platform not supported" error, never silently).
 

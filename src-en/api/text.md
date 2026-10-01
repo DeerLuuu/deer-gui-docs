@@ -72,7 +72,9 @@ Runnable examples: `cargo run -p deer-gui --example text_render` (real glyphs to
 - `FontMeasure::width` ignores `TextStyle.font_size` (the size comes from the `font_size` given at construction),
   so when assembling the pipeline yourself, don't expect changing `TextStyle` to change the font size;
 - **No hinting** (backed by measurements: even the cheapest hinting-lite has no net benefit); subpixel horizontal positioning is an
-  opt-in path in the rasterizer; by default glyphs still land on integer positions;
+  opt-in path in the rasterizer; by default glyphs still land on integer positions — and a decision has been made **not to wire it into**
+  the text engine: positioning error improves ~4×, but the edge-softness cost outweighs it — no net visual gain;
+  revisit for LCD subpixel or high-DPI half-pixel positioning;
 - Chinese glyphs: the atlas rasterizes on demand with caching, but **the font file itself must contain the glyphs you need** —
   system font probing only recognizes the three Western fonts, so pass a Chinese font path explicitly for Chinese UIs;
 - Wrapping details (Chinese is hard-cut per character, etc.) in [Step 8](../getting_started/step_by_step/08_scroll_wrap.md).
