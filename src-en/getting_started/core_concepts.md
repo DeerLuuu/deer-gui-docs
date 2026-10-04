@@ -20,6 +20,10 @@ Division of labor along the chain:
 | Generate draw commands | [`build_draw_list`](../api/draw.md) | [`DrawList`](../api/draw.md) |
 | Produce pixels / put them on screen | [CPU backend `CpuRenderer`](../api/draw.md) or [Vulkan window path](../api/window.md) | RGBA8 / swapchain |
 
+## The 7 crates of the workspace
+
+The whole chain is carried by a workspace, layered bottom-up: `deer-core` (L0, **everything from the former `deer-layout` has moved in** — node tree, layout algebra, scene parsing, hit testing, draw commands, property registry, value parsing; platform-independent with zero platform dependencies), `deer-text` (L1 text stack: font parsing, glyph rasterization, atlas, metrics), `deer-gpu` (L1: GPU HAL traits and the CPU reference backend), `deer-window` (L1 display service + L3 window host), `deer-vk` (L2 Vulkan backend), `deer-gui` (L4 facade). There is also a cross-cutting `deer-log` (zero-dependency logging facade). For the dependency discipline, see the [Architecture Overview](../advanced/architecture.md).
+
 ## Two authoring paths, one tree
 
 ```rust,ignore
@@ -48,7 +52,9 @@ named nodes "reserve their number", and both paths follow the same rule.
 2. **The tree can be serialized freely**. The `.dui` text ↔ `Node` round-trip is structurally equal (`parse_scene(encode_scene(t)) == t`);
 3. **Layout is a pure function**. `layout()` never mutates the input tree; it only returns a geometry table; the same input always yields the same output (no time, no randomness, no environment probing).
 
-## The five node kinds (Kind)
+## Node kinds (Kind)
+
+`Kind` currently has **12 variants**:
 
 | Kind | Role | Can have children |
 |---|---|---|
@@ -57,8 +63,15 @@ named nodes "reserve their number", and both paths follow the same rule.
 | `Text` | Plain text | ❌ |
 | `Button` | Button | ❌ |
 | `Field` | Input field | ❌ |
+| `Segmented` | Segmented selector (mutually exclusive single choice; segments are child buttons) | ✅ |
+| `ChipGroup` | Chip group (multi-select toggles; chips are child nodes) | ✅ |
+| `TabBar` | Tab bar (single-select tabs) | ✅ |
+| `NumberField` | Numeric input field (parsed on commit) | ❌ |
+| `ScrubNum` | Drag-to-adjust number (drag to change the value) | ❌ |
+| `Switch` | Switch (toggled by click/`Enter`/`Space`) | ❌ |
+| `ColorField` | Color input field (`#RRGGBB` + swatch preview) | ❌ |
 
-The widget vocabulary is deliberately minimal — it comes from the validated prototype of `deer-ui` and is enough to verify the main line of "containers + layout + interaction".
+The widget vocabulary comes from the validated prototype of `deer-ui`; the M6 widget family is still growing (`Icon`, `DropMenu`, `Dialog`, `Overlay`, `HoverTip` are not done yet; see [`FEATURES.md`](https://github.com/DeerLuuu/deer-gui/blob/master/FEATURES.md)).
 
 ## The eight invariants of the layout engine
 

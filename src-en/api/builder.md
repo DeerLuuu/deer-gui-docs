@@ -1,6 +1,6 @@
 # Imperative Authoring (Builder / L)
 
-**Module**: `deer_layout::builder` (available directly from the prelude)
+**Module**: `deer-core::builder` (formerly `deer-layout::builder`, 2026-10 layered reorganization; available directly from the prelude)
 
 ## What it does
 
@@ -19,11 +19,28 @@ An imperative declaration API with an imgui feel: the call site is the widget, n
 | `.button(label)` | same | `String` (id) | Appends a `Button` leaf |
 | `.field(label)` | same | `String` (id) | Appends a `Field` leaf |
 | `.text_opts(label, f)` / `.button_opts(label, f)` | `FnOnce(&mut Node)` | `String` (id) | Appends a leaf and **edits it in place** (e.g. `n.layout.wrap = true`) |
-| `.container(kind, id, body)` | `FnOnce(&mut Builder)` | `()` | Container + closure nesting; asserts `kind` is `Column`/`Row` |
+| `.container(kind, id, body)` | `FnOnce(&mut Builder)` | `()` | Container + closure nesting; asserts `kind` is a container (`Column`/`Row`/selection-family groups) |
 | `.container_auto(kind, body)` | same | `()` | Container + auto id |
 | `.container_opts(kind, id, layout: LayoutProps, body)` | same | `()` | Container + layout props (the proper way to set layout on nested containers) |
 | `.build()` | — | `Node` | **Clones** the whole tree; the `Builder` remains reusable |
 | `.root_id()` | — | `&str` | The root's id |
+
+### M6 widget family (convenience constructors)
+
+The methods below are all verified against the source (`crates/deer-core/src/builder.rs`). **The returned ids are the keys for events and the `UiState` state tables**; the `*_opts` versions let you specify an id (**an empty string = auto-generated**) and edit the node in place (`FnOnce(&mut Node)`).
+
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `.segmented(labels)` / `.segmented_opts(id, layout, labels)` | `labels: &[&str]` | `Vec<String>` (segment ids) | **Segmented selection group** (`Kind::Segmented`): mutually exclusive single select, one `button` per label; selection lives in `UiState::segments` (group id → segment id); nothing stored = no selected segment |
+| `.chip_group(labels)` / `.chip_group_opts(id, layout, labels)` | same | `Vec<String>` (chip ids) | **Chip group** (`Kind::ChipGroup`): multi-select, each chip toggles independently; the toggle table is `UiState::chips`; absent from the table = off |
+| `.tab_bar(labels)` / `.tab_bar_opts(id, layout, labels)` | same | `Vec<String>` (tab ids) | **Tab bar** (`Kind::TabBar`): single-select tabs, a click emits `TabChanged { id, index }` (index follows the tree order of direct children, disabled tabs count too); switching content is the App's job |
+| `.number_field(label)` / `.number_field_opts(id, label, f)` | `impl Into<String>` | `String` (id) | **Number input field** (`Kind::NumberField`): draft uses the same mechanics as `Field`; on commit (blur / `Enter`) it parses and emits `NumberChanged`; min/max/step live in `UiState::num_opts` |
+| `.scrub_num(label)` / `.scrub_num_opts(id, label, f)` | same | `String` (id) | **Scrubbing number** (`Kind::ScrubNum`): `label` must be the current value formatted by the App; holding and dragging left/right continuously emits `NumberChanged` |
+| `.switch(label)` / `.switch_opts(id, label, f)` | same | `String` (id) | **Switch** (`Kind::Switch`): click / `Enter` / `Space` toggles and emits `Toggled { id, on }`; on/off lives in `UiState::switches` (keyed by its own id); absent from the table = off |
+| `.color_field(label)` / `.color_field_opts(id, label, f)` | same | `String` (id) | **Color input field** (`Kind::ColorField`): text input for `#RRGGBB` plus a swatch preview; a successful commit emits `ColorChanged { rgb }` and writes back the normalized string |
+| `.row_actions(labels)` / `.row_actions_opts(id, layout, labels)` | `labels: &[&str]` | `Vec<String>` (button ids) | **End-of-row action button group** (composition layer): equivalent to "a `Row` + one `button` per label", adds no `Kind`; the group id is auto-generated |
+
+Note: the three selection-family groups (Segmented/ChipGroup/TabBar) **are containers** (their children are the options), using the same horizontal math as `Row` for layout; trees produced by the convenience constructors are **structurally equal** to a hand-written `container_opts` + `button` (pinned by tests).
 
 ## `L` — a `LayoutProps` convenience constructor
 
@@ -37,8 +54,22 @@ An imperative declaration API with an imgui feel: the call site is the widget, n
 | `.grow(w)` | `grow` | Weight for distributing leftover main-axis space |
 | `.scroll(bool)` | `scroll` | Vertical scroll container, **meaningful only on `Column`** (ignored on `Row`) |
 | `.wrap(bool)` | `wrap` | Wraps text at width, **meaningful only on `Text`** |
+| `.pos(x, y)` | `position` = `Pos::Offset` | Out-of-flow positioning (L1): pixel offsets relative to the parent's content-box origin, may be negative; once set, the node leaves in-flow layout |
+| `.anchors(l, t, r, b, ox, oy)` | `position` = `Pos::Anchors` | Out-of-flow anchors (L4): anchor ratios on the four edges (`None` = no anchor on that edge) + pixel corrections; if both sides of one axis have anchors ⇒ size is derived from the anchor pair, and **anchored edges follow resizes** |
+| `.cross_self(a)` | `cross_self` | Per-child cross-axis alignment (L2): overrides the parent container's `cross`, applies to this one in-flow child only |
+| `.min_w(px)` / `.max_w(px)` / `.min_h(px)` / `.max_h(px)` | `min_w` / `max_w` / `min_h` / `max_h` | Min/max sizes (L3, pixel variants); for percentages set the fields directly with `Size::Pct`; `min > max` ⇒ min wins |
 
 There is also the free function `props(label: Option<&str>, disabled: bool) -> NodeProps`.
+
+## Property registry (registry)
+
+`deer-core::registry` (new after the reorganization, E1): a **pure-data table** enumerating the "editable properties" of each [`Kind`](node.md).
+
+- `PropSpec` — one property entry: `name` (verbatim match with the struct field name), `ty: PropType` (which widget the editor should use to change it), `domain` (value domain, for display + input validation), `default` (literal default), `kinds` (which `Kind`s it is meaningful for, non-empty);
+- `PropType` — the value type: `F32` / `Bool` / `Size` / `Align` / `Pos` / `Text` / `Opaque` (`Opaque` = an unknown property preserved as-is; editors **should not edit it directly**);
+- `SPECS: &[PropSpec]` — all entries; declaration order = display order in the editor.
+
+**Who consumes it**: the same table serves four consumers — the Inspector panel, the undo granularity of "change one property", the syntax surface of `.dui` 2.0, and the mapping rules for drag-and-drop write-back. It is pure data (`&'static [PropSpec]`, no trait objects / `Any` / proc macros), sharing the same stance as "the tree is pure data"; drift is prevented by compile-time exhaustive destructuring — adding a field to `LayoutProps`/`NodeProps` without registering it fails the registry module's compilation outright.
 
 ## Example
 

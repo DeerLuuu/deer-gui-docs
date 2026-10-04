@@ -29,12 +29,17 @@ Behavior that looks "counter-intuitive" is usually **deliberate**. This page col
 | `Tab` can focus an invisible button | `focusables` depends only on the tree: zero-size nodes remain in the focus sequence | Deliberate (the focus order introduces no second geometric truth) |
 | The wheel doesn't scroll | `ScrollMetrics` was never fed into `ScrollState` ⇒ all caps are 0 (fail-closed) | After `layout_with_scroll`, call `state.scroll.set_metrics(&metrics)` every frame |
 | The window "freezes" and doesn't redraw | Default `OnDemand`: if input didn't change state, nothing is drawn (power saving) | If state really changed, return `wants_redraw() == true`; declare `Continuous` for animations or use a `Waker` |
-| IME can't type a Chinese preedit | Preedit isn't modeled (only used to suppress duplicate commits); text from `Commit` does arrive | Wait for M6+; see [`docs/features/input.md`](https://github.com/DeerLuuu/deer-gui/blob/master/docs/features/input.md) |
+| The old belief that "dragging off the button loses the click" | T3.7 pointer capture (ruled by D7): **capture happens on press**; while dragging outside, move events are still routed to the captor (`hover` is pinned to the captured node), and **release settles `Clicked` against the captor** — releasing anywhere counts | To model "drag out = cancel" you must build it yourself (queryable at both press and release); `ScrubNum` drag-to-adjust and the scrollbar thumb drag are both built on capture |
+| Right-click "does nothing" | Right-click is **pure passthrough** (T3.3, Q1): `PointerDown { Right }` emits `UiEvent::PointerRight` on press and **does not participate** in focus/`pressed`/`Clicked` (disabled subtrees don't emit) | The upper layer receives `PointerRight(id)` and decides what to do itself (context menus belong to the M6 widget layer) |
+| IME pre-edit "has no effect" | Pre-edit is attached to the **currently focused input field** (`UiState::preedit`, not into `texts`); with no focused field ⇒ it is ignored; empty `text` = cancel | Focus an input field first (click or `Tab`); commit goes through `TextInput` into `texts` and clears the buffer (no double-writing) |
+| No inertia after releasing the wheel | Inertia is two halves: the pure logic is complete, but it **does not scroll by itself** — the caller must call `advance_inertia` in `redraw` on the `INERTIA_TICK_MS` cadence (the wheel already seeds it automatically; only the driving is missing) | Follow the wiring in the `scroll_inertia_window` example: `advance_inertia` advances + `inertia_deadline` supplies `next_deadline` |
+| Logging pollutes tests that judge by stderr | It won't: without `DEER_LOG` set, `deer-log` turns off all levels ⇒ **not a single byte is output** (fully silent by default is a hard requirement) | To get logs you must set `DEER_LOG` explicitly (see the table below); this is also why the silent default cannot change |
 
 ## Environment variables and gates
 
 | Variable | Effect |
 |---|---|
+| `DEER_LOG` | Logging switch (unset = fully silent; `off` / a global level like `debug` / `target=level`, comma-separated, later entries override earlier ones) |
 | `DEER_WINDOW_REDRAW=continuous` | Unconditionally force continuous redraw (turns off power saving) |
 | `DEER_VK_WINDOW_TESTS=1` | Turns on the gate for window parity tests (unset = explicitly prints "skipped") |
 | `DEER_INPUT_SCRIPT` | The default input script for window examples (see [input script syntax](../appendix/input_script.md)) |

@@ -80,6 +80,23 @@ cargo run -p deer-gui --example scroll
 > 超出宽度时走**按字符硬切**——结果确定、逐字折行，符合预期；但如果你在英文单词中间
 > 期待「按词断行」，记得源文本里要有空格。
 
+## 滚动条与惯性滚动（已落地）
+
+- **可视滚动条**：`scrollbar_geom(viewport, offset, max_scroll)` 给出轨道 + 滑块几何
+  （宽度 `SCROLLBAR_W`、贴边内缩 `SCROLLBAR_INSET`、最小滑块高 `SCROLLBAR_MIN_THUMB`；
+  内容装得下 ⇒ 返回 `None` 不画）。交互层接线后：**拖滑块改偏移**，**点轨道空白跳到指针处**并可续拖。
+- **惯性滚动**：滚轮滚动时自动播种惯性（滚多远滑多远），但**不会自己滚** ——
+  需要调用方显式驱动：`redraw` 里调 `advance_inertia(&mut state)` 推进一步，
+  `next_deadline` 用 `inertia_deadline(state)` 排下一次唤醒。真实窗口的完整接线见示例
+  `scroll_inertia_window`。
+
+细节见[布局引擎](../../api/layout.md)与[交互层](../../api/interaction.md)。
+
+```sh
+cargo run -p deer-gui --example scroll_bar            # 可视滚动条（离屏自检）
+cargo run -p deer-gui --features window --example scroll_inertia_window   # 惯性滚动（真窗口）
+```
+
 ## 本节用到的 API
 
 | API | 作用 | 详细文档 |

@@ -1,6 +1,6 @@
 # Drawing & Theme (DrawList / Theme / Color)
 
-**crate**: `deer-gpu` (used via `deer_gui` / the prelude)
+**crate**: `DrawCmd` / `DrawList` / `Color` / `RectI` / `TextureId` / `GpuError` / `GpuResult` now live in `deer-core` (formerly `deer-gpu`, 2026-10 layered reorganization; prelude names unchanged); `Theme` / `Extent` remain in `deer-gpu`. Page content is used via `deer_gui` / the prelude.
 
 ## What it does
 
@@ -37,6 +37,10 @@ The command list of one frame, with a structural invariant: **the clip stack mus
 |---|---|---|
 | `build_draw_list` | `(tree: &Node, geo: &Geometry, theme: Theme, m: &impl Measure) -> DrawList` | Tree + geometry → command list (the single production point) |
 | `CpuRenderer` (`deer_gpu::null`) | `new()` / `with_text(engine: TextEngine)`; `render(Extent { width, height }, &list, clear: Color) -> GpuResult<Framebuffer>` | The CPU reference backend (software rasterization); `Framebuffer { width, height, pixels: Vec<u8> }` |
+
+### Image decoding (new in deer-gpu, AF-1)
+
+`deer-gpu` gains an `image` module: zero-dependency **BMP decoding** (file bytes → RGBA8 pixels → feed straight to a texture). Root exports `decode_bmp` / `upload_bmp_to_texture` / `BmpImage` / `BmpError`; supports 24/32-bit `BI_RGB` and 32-bit `BI_BITFIELDS`; unsupported formats (16-bit, palette, RLE, etc.) fail explicitly with `Unsupported` instead of silently returning an empty image. Runnable example: `cargo run -p deer-gui --example bmp_decode`.
 
 ## `Theme`
 

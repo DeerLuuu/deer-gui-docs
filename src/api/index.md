@@ -8,10 +8,12 @@ deer-gui 对使用者暴露的是一个**门面 crate**（`deer_gui`）加四个
 | Crate | 职责 | 文档 |
 |---|---|---|
 | `deer-gui` | 门面：re-export 一切 + 离屏渲染便捷入口 + 交互层 + testkit | [门面 crate](deer_gui.md) |
-| `deer-layout` | 节点树、布局代数、命中测试、`.dui` 场景解析（**零平台依赖**） | [Builder](builder.md) · [Node](node.md) · [布局](layout.md) · [场景](scene.md) |
-| `deer-gpu` | GPU HAL、绘制列表、主题、文本引擎、CPU 参考后端 | [绘制与主题](draw.md) · [文本引擎](text.md) |
+| `deer-core` | 节点树、布局代数（L1–L4）、命中测试、`.dui` 场景解析、绘制原语、属性注册表（**零平台依赖**；原 `deer-layout` 内容迁入） | [Builder](builder.md) · [Node](node.md) · [布局](layout.md) · [场景](scene.md) |
+| `deer-text` | 文本栈：TTF 解析、光栅化、字形图集、度量、TextEngine（API 名不变，随 LY2 从 deer-gpu 迁出） | [文本引擎](text.md) |
+| `deer-gpu` | GPU HAL 契约、DefaultRenderer/CpuRenderer、主题、BMP 图像解码 | [绘制与主题](draw.md) |
+| `deer-log` | 零依赖日志门面（`DEER_LOG` 开关，默认完全静默） | 见仓库 `crates/deer-log` 源码文档 |
 | `deer-vk` | Vulkan 后端（自声明符号 + 运行时动态加载，不需要 SDK） | 见仓库 `crates/deer-vk` 源码文档 |
-| `deer-window` | 窗口 + 事件循环（`winit`，唯一第三方依赖；`window` feature） | [窗口层](window.md) |
+| `deer-window` | 窗口 + 事件循环 + 多窗口基建（`winit`，唯一第三方依赖；`window` feature） | [窗口层](window.md) |
 
 ## prelude 一览
 

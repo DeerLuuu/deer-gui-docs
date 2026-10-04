@@ -1,6 +1,6 @@
 # 布局不变式（I-1 ～ I-8）
 
-`layout()` 的行为由八条不变式定义，**每条都有对应测试**（`crates/deer-layout/tests/layout_invariants.rs`）。这八条是布局引擎的行为契约：文档与直觉冲突时，以不变式为准。
+`layout()` 的行为由八条不变式定义，**每条都有对应测试**（`crates/deer-core/tests/layout_invariants.rs`）。这八条是布局引擎的行为契约：文档与直觉冲突时，以不变式为准。
 
 ## 一览
 
@@ -40,7 +40,7 @@
 ## 怎么验证
 
 ```sh
-cargo test -p deer-layout          # 布局不变式全量断言（无 GPU 也能跑）
+cargo test -p deer-core          # 布局不变式全量断言（无 GPU 也能跑）
 cargo run -p deer-gui --example geometry   # 布局与命中测试的可视示例
 ```
 

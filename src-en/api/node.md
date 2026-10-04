@@ -1,6 +1,6 @@
 # The Node Data Model (Node / Kind / Size / Align)
 
-**Module**: `deer_layout::node`
+**Module**: `deer-core::node` (formerly `deer-layout::node`, 2026-10 layered reorganization)
 
 ## What it does
 
@@ -22,9 +22,17 @@ Three design decisions:
 | `Row` | Horizontal container | ✅ |
 | `Text` | Plain text | ❌ |
 | `Button` | Button | ❌ |
-| `Field` | Input field | ❌ |
+| `Field` | Input field (the baseline of the text-editing family) | ❌ |
+| `Segmented` | Segmented selection group: mutually exclusive single select, children = segments, a click emits `SelectionChanged` | ✅ |
+| `ChipGroup` | Chip group: multi-select, each chip toggles independently, emits `ChipToggled` | ✅ |
+| `TabBar` | Tab bar: single-select tabs, emits `TabChanged { index }`; switching content is the App's job | ✅ |
+| `NumberField` | Number input field: parsed only on commit (blur/`Enter`), emits `NumberChanged` | ❌ |
+| `ScrubNum` | Scrubbing number: hold and drag left/right to change the value, continuously emits `NumberChanged` | ❌ |
+| `Switch` | Switch: click/`Enter`/`Space` toggles, emits `Toggled { id, on }` | ❌ |
+| `ColorField` | Color input field: enter `#RRGGBB` + swatch preview, commit emits `ColorChanged` | ❌ |
 
-Helpers: `Kind::as_str()` (`"column"` etc., same names as in scene files), `Kind::parse(&str) -> Option<Kind>`.
+Helpers: `Kind::as_str()` (`"column"` etc., same names as in scene files), `Kind::parse(&str) -> Option<Kind>`;
+predicates `is_horizontal()` (`Row` and the three selection-family groups), `is_selection_group()`, `is_value_field()` (Field/NumberField/ColorField).
 
 ### `Node`
 
@@ -33,7 +41,7 @@ Helpers: `Kind::as_str()` (`"column"` etc., same names as in scene files), `Kind
 | `kind` | `Kind` | Node type |
 | `id` | `String` | Deterministic id |
 | `layout` | `LayoutProps` | Layout props (see below) |
-| `props` | `NodeProps` | `{ label: Option<String>, disabled: bool }` |
+| `props` | `NodeProps` | `{ label: Option<String>, disabled: bool, extra: BTreeMap<String, Option<String>> }` (`extra` = unknown properties preserved as-is; editors don't edit them directly) |
 | `children` | `Vec<Node>` | Only containers should have children |
 
 | Method | Notes |
@@ -57,6 +65,18 @@ Helpers: `Kind::as_str()` (`"column"` etc., same names as in scene files), `Kind
 | `grow` | `f32` | `0.0` | Weight for distributing leftover main-axis space |
 | `scroll` | `bool` | `false` | **Vertical** scroll container (meaningful only on `Column`; ignored on `Row`) |
 | `wrap` | `bool` | `false` | Wraps text at width (the wrap width = the node's own **pixel** width) |
+| `position` | `Option<Pos>` | `None` | Out-of-flow positioning (L1 `Offset` / L4 `Anchors`); once set, the node leaves in-flow layout |
+| `cross_self` | `Option<Align>` | `None` | Per-child cross-axis alignment (L2), overrides the parent container's `cross_axis` |
+| `min_w` / `max_w` / `min_h` / `max_h` | `Option<Size>` | `None` | Min/max sizes (L3); `min > max` ⇒ min wins |
+
+### `Pos` (out-of-flow positioning)
+
+The value of `LayoutProps.position`; both variants share the same out-of-flow predicate `Node::is_positioned()`:
+
+- `Pos::Offset { x, y: i32 }` — pixel offsets relative to the parent container's **content-box** origin, may be negative;
+- `Pos::Anchors { l, t, r, b: Option<f32>, ox, oy: i32 }` — **anchors on four edges**: `l/t/r/b` are anchor ratios of the parent content box (0.0 = left/top edge, 1.0 = right/bottom edge, `None` = no anchor on that edge); `ox/oy` are inset-style pixel corrections (added on the start edge, subtracted on the end edge). If both sides of one axis have anchors ⇒ that axis's size is derived from the anchor pair (explicit w/h don't participate; min/max clamp as usual); **when the parent box resizes, the anchored edges follow** — this is the whole point of this variant.
+
+Companions: `Pos::parse(s)` / `Pos::to_attr()` are inverse to each other and to `.dui` attribute values (scene-side and command-side share the same syntax).
 
 ### `Align` / `Rect`
 
@@ -88,6 +108,8 @@ assert!(tree.children[0].wraps_text() == false);
 - `scroll` / `wrap` are opt-in switches, default `false`; a wrong container type is **ignored** (`scroll` on a `Row`),
   and only the [scene file](scene.md) path errors outright on "a switch attribute given a value";
 - `disabled` affects the **entire subtree**: hit testing, focus, and text input all skip it (see the [interaction layer](interaction.md));
-- Zero-size nodes still stay in the focus sequence (`focusables` depends only on the tree) — deliberately introducing no second geometric truth.
+- Zero-size nodes still stay in the focus sequence (`focusables` depends only on the tree) — deliberately introducing no second geometric truth;
+- `Node` also has a `comments: Vec<String>` field (the `#` comment lines of `.dui`), which does **not** participate in `structurally_eq` (comments don't affect layout/hit testing/rendering, otherwise the "both authoring paths are structurally equal" invariant would break);
+- The tests for the core invariants (`Node::structurally_eq` etc.) and the L1–L4 layout algebra live under `deer-core/tests/` (`layout_invariants.rs`, `l1_position.rs` … `l4_anchors.rs`).
 
 Related tutorials: [Step 2](../getting_started/step_by_step/02_builder.md), [Step 3](../getting_started/step_by_step/03_layout_props.md).

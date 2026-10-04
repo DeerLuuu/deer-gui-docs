@@ -20,11 +20,11 @@ Environment variable: `DEER_INPUT_SCRIPT` (window examples read their default sc
 | `move:X,Y` | Move the pointer to `(X, Y)` (f32; edge values and negatives are both allowed) |
 | `down:left` / `down:right` / `down:middle` | Pointer press (coordinates = **the most recent `move`**; if there was none, `(0,0)`) |
 | `up:left` (same three buttons) | Pointer release (same coordinate rule as `down`) |
-| `key:Tab` | `KeyDown`. Also writable: `Escape` / `Enter` / `Backspace` / `Left` / `Right` / `Up` / `Down` / `Other` / `Char(a)` |
+| `key:Tab` | `KeyDown`. Also writable: `Escape` / `Enter` / `Backspace` / `Left` / `Right` / `Up` / `Down` / `PageUp` / `PageDown` / `Home` / `End` / `Other` / `Char(a)`. **A `*` after the key name (`key:Tab*`) = system key repeat** (`repeat: true`, T3.6); without `*` = a normal press (`repeat: false`) |
 | `shift+key:Tab` (or `key:shift+Tab`) | With modifiers: `ctrl+` / `alt+` / `sup+` in the same slot, stacked with `+`; the prefix may sit on the verb side or the key name side |
 | `text:hi` | A run of text input (verbatim, spaces and Chinese included; **appends**, doesn't overwrite) |
 | `focus:off` / `focus:on` | Window lost focus / regained focus (`FocusChanged`) |
-| `wheel:0,3` | A wheel event (not consumed by the state machine at this stage; usable to verify "unconsumed events don't change state") |
+| `wheel:0,3` | A wheel event (`dy` drives the vertical scrolling of the nearest scrollable ancestor of `hover` and seeds inertia; see [Step 8](../getting_started/step_by_step/08_scroll_wrap.md); `dx` is ignored this round) |
 
 ## API
 
@@ -46,7 +46,10 @@ use deer_gui::interaction::{InputEvent, Key, PointerButton};
 let evs = parse_script("move:10,20; down:left; up:left; key:Tab; text:hi").unwrap();
 assert_eq!(evs.len(), 5);
 assert_eq!(evs[0], InputEvent::PointerMoved { x: 10.0, y: 20.0 });
-assert_eq!(evs[3], InputEvent::KeyDown { key: Key::Tab, mods: Default::default() });
+assert_eq!(
+    evs[3],
+    InputEvent::KeyDown { key: Key::Tab, mods: Default::default(), repeat: false }
+);
 assert_eq!(evs[4], InputEvent::TextInput { text: "hi".to_string() });
 ```
 

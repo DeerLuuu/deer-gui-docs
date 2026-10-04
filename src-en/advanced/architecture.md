@@ -2,22 +2,34 @@
 
 ## Layers
 
+The workspace has **7 crates**, bottom-up L0–L4:
+
 ```text
 crates/
-├── deer-layout/   Language-agnostic core: Node tree, layout algebra, hit testing, .dui scene parsing
-│                  ── zero platform dependencies; fully assertable in CI without a GPU
-├── deer-gpu/      GPU HAL: Backend/Device/Swapchain/Frame traits, DrawList, CPU reference backend
+├── deer-core/     L0 language-agnostic pure core: node tree (node), Builder, layout algebra (layout),
+│                  .dui scene parsing (scene), property registry (registry), value parsing (values),
+│                  draw commands (draw), errors (error)
+│                  ── zero platform dependencies; fully assertable in CI without a GPU (former deer-layout has been merged in)
+├── deer-text/     L1 text stack: font parsing, glyph rasterization, atlas, metrics + zero-dependency PNG encoder
+│                  ── text capability has exactly one implementation, shared by the CPU/GPU backends
+├── deer-gpu/      L1: GPU HAL traits (Backend/Device/Frame/Renderer), DrawList,
+│                  CPU reference backend, interaction rendering helpers, BMP decoding (image.rs)
 │                  ── adding a backend = implementing one trait
-├── deer-vk/       Vulkan backend: hand-declared extern symbols + runtime dynamic loading; surface/swapchain/presentation
+├── deer-window/   L1 display service (display.rs): winit event loop, InputEvent mapping, DPI, clipboard
+│                  L3 host (host.rs): App/run/Waker/RedrawPolicy, multi-window (WindowId/WindowSpawner)
+│                  ── the only place that introduces a third-party dependency (winit); it hands only the opaque
+│                     RawWindowHandle to the rendering layer, so swapping window implementations
+│                     never touches the rendering layer
+├── deer-vk/       L2 Vulkan backend: hand-declared extern symbols + runtime dynamic loading; surface/swapchain/presentation
 │                  ── no Vulkan SDK needed (links only kernel32; vulkan-1.dll loaded at runtime)
-└── deer-window/   Window layer: native window + event loop (winit)
-                   ── the only place that introduces a third-party dependency; it hands only the opaque
-                      RawWindowHandle to the rendering layer, so swapping window implementations
-                      never touches the rendering layer
+└── deer-gui/      L4 facade: re-exports everything, testkit, input scripts (input_script), convenient offscreen-rendering entry points
+                   ── see the [API overview](../api/index.md)
 ```
 
-`deer-gui` is the **facade**: it re-exports everything, provides the interaction layer and the testkit, and offers convenient offscreen-rendering entry points
-(see the [API overview](../api/index.md)).
+Two additions:
+
+- **The interaction layer (`deer_gui::interaction`) belongs to the L2 framework**: hit testing / state machines / `UiEvent` are framework logic, not part of `deer-core` — it lives in `deer-gui`, but it is pure logic (it never touches windows or the GPU) and can be unit-tested in a windowless environment;
+- **`deer-log` is a cross-cutting logging facade**: zero-dependency, hand-written (~200 lines, no `log`/`tracing`), with levels + per-target filtering + stderr output, fully silent by default, shared across the whole workspace.
 
 ## Data flow (the closed loop of one frame)
 
@@ -39,11 +51,13 @@ Key points:
 
 | Crate | Third-party dependencies |
 |---|---|
-| `deer-layout` | none |
+| `deer-core` | none |
+| `deer-text` | none |
 | `deer-gpu` | none |
+| `deer-window` | `winit 0.30` |
 | `deer-vk` | none (Vulkan symbols hand-declared + `LoadLibraryW` runtime loading; no SDK needed) |
-| `deer-gui` (without `window`) | none |
-| `deer-window` / `deer-gui --features window` | `winit 0.30` |
+| `deer-log` | none (deliberately zero-dependency, no `log`/`tracing`) |
+| `deer-gui` | none (`deer-window` is an optional dependency; brings in `winit` via it when the `window` feature is on) |
 
 `winit` is the only registered exception ([`ROADMAP.md`](https://github.com/DeerLuuu/deer-gui/blob/master/ROADMAP.md) Q-1). **Any new dependency must first be registered there, with a justification.**
 

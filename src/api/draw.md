@@ -1,6 +1,6 @@
 # 绘制与主题（DrawList / Theme / Color）
 
-**crate**：`deer-gpu`（经 `deer_gui` / prelude 使用）
+**crate**：`DrawCmd` / `DrawList` / `Color` / `RectI` / `TextureId` / `GpuError` / `GpuResult` 现属 `deer-core`（原 `deer-gpu`，2026-10 分层重组；prelude 名字不变）；`Theme` / `Extent` 仍在 `deer-gpu`。页面内容经 `deer_gui` / prelude 使用。
 
 ## 功能说明
 
@@ -37,6 +37,10 @@
 |---|---|---|
 | `build_draw_list` | `(tree: &Node, geo: &Geometry, theme: Theme, m: &impl Measure) -> DrawList` | 树 + 几何 → 命令列表（唯一产出点） |
 | `CpuRenderer`（`deer_gpu::null`） | `new()` / `with_text(engine: TextEngine)`；`render(Extent { width, height }, &list, clear: Color) -> GpuResult<Framebuffer>` | CPU 参考后端（软件光栅化）；`Framebuffer { width, height, pixels: Vec<u8> }` |
+
+### 图像解码（deer-gpu 新增，AF-1）
+
+`deer-gpu` 新增 `image` 模块：零依赖 **BMP 解码**（文件字节 → RGBA8 像素 → 直喂纹理）。根导出 `decode_bmp` / `upload_bmp_to_texture` / `BmpImage` / `BmpError`；支持 24/32 位 `BI_RGB` 与 32 位 `BI_BITFIELDS`，不支持的格式（16 位、调色板、RLE 等）明确报 `Unsupported`，不静默给空图。可运行示例：`cargo run -p deer-gui --example bmp_decode`。
 
 ## `Theme`
 

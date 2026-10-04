@@ -29,12 +29,17 @@
 | `Tab` 能聚焦一個看不見的按鈕 | `focusables` 只依賴樹：零尺寸節點仍在焦點序列裡 | 刻意設計（焦點序不引入第二套幾何真相） |
 | 滑鼠滾輪滾不動 | `ScrollMetrics` 沒灌進 `ScrollState` ⇒ 上限全 0（fail-closed） | 每幀 `layout_with_scroll` 後呼叫 `state.scroll.set_metrics(&metrics)` |
 | 視窗「不動了」不重繪 | 預設 `OnDemand`：輸入沒改狀態就不畫（省電） | 確實改了狀態就回傳 `wants_redraw() == true`；動畫宣告 `Continuous` 或用 `Waker` |
-| IME 打不了中文預編輯 | 預編輯未建模（只抑制重複上屏），`Commit` 的文字能收 | 等 M6+；見 [`docs/features/input.md`](https://github.com/DeerLuuu/deer-gui/blob/master/docs/features/input.md) |
+| 「拖出按鈕就丟點擊」的舊認知 | T3.7 指標捕獲（D7 裁定）：**按下即捕獲**，拖出期間移動事件仍路由給捕獲者（`hover` 釘在捕獲節點上），**抬起按捕獲者結算** `Clicked` —— 在哪抬起都算 | 想做「拖出即取消」要自己建模（按下/抬起處都可查）；`ScrubNum` 拖動調值與捲軸拖滑塊都建在捕獲之上 |
+| 右鍵「點了沒反應」 | 右鍵是**純直通**（T3.3，Q1）：`PointerDown { Right }` 按下即發 `UiEvent::PointerRight`，**不參與**焦點/`pressed`/`Clicked`（停用子樹不發） | 上層收到 `PointerRight(id)` 自己決定做什麼（上下文選單屬 M6 控制項層） |
+| IME 預編輯「沒效果」 | 預編輯掛在**當前聚焦的輸入框**上（`UiState::preedit`，不進 `texts`）；沒有聚焦輸入框 ⇒ 被忽略；空 `text` = 取消 | 先讓輸入框拿到焦點（點擊或 `Tab`）；提交走 `TextInput` 進 `texts` 並清緩衝（無雙寫） |
+| 滾輪鬆手後慣性沒發生 | 慣性分兩半：純邏輯已齊，但**不會自動捲** —— 需要呼叫方在 `redraw` 裡按 `INERTIA_TICK_MS` 調 `advance_inertia`（滾輪時已自動播種，缺的只是驅動） | 參照 `scroll_inertia_window` 範例接線：`advance_inertia` 推進 + `inertia_deadline` 給 `next_deadline` |
+| 日誌把按 stderr 判據的測試弄髒了 | 不會：`deer-log` 不設 `DEER_LOG` ⇒ 所有級別全關 ⇒ **一個位元組都不輸出**（預設完全靜默是硬要求） | 要日誌必須顯式設 `DEER_LOG`（見下表）；這也是為什麼預設靜默不能改 |
 
 ## 環境變數與門檻
 
 | 變數 | 作用 |
 |---|---|
+| `DEER_LOG` | 日誌開關（不設 = 完全靜默；`off` / 全域級別如 `debug` / `target=級別`，逗號分隔，後寫覆蓋先寫） |
 | `DEER_WINDOW_REDRAW=continuous` | 無條件強制連續重繪（關掉省電模式） |
 | `DEER_VK_WINDOW_TESTS=1` | 開啟視窗對照測試的門禁（不設 = 明確列印「被跳過」） |
 | `DEER_INPUT_SCRIPT` | 視窗範例的預設輸入腳本（見[輸入腳本語法](../appendix/input_script.md)） |

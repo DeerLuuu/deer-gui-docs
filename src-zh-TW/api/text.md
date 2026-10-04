@@ -1,6 +1,10 @@
 # 文字引擎與字型度量（TextEngine / FontMeasure）
 
-**模組**：`deer_gpu::text` / `deer_gpu::measure`
+**模組**：`deer_text::text` / `deer_text::measure`（2026-10 分層重組：文字堆疊從 `deer-gpu` 遷入新 crate **deer-text**）
+
+> **名字一個都沒變**：`TextEngine` / `FontMeasure` / `Rasterizer` / `GlyphAtlas` / `GlyphKey` / `GlyphImage` / `GlyphPlacement` 的 API 名與簽名不變，只是 crate 歸屬從 `deer-gpu` 變成 `deer-text`；`deer_gui::prelude::*` 裡的導出名也保持不變，既有 `use deer_gui::prelude::*` 的程式碼不用改。
+
+相依方向是單向的 `deer-gpu → deer-text → deer-core`，deer-text 零第三方相依。
 
 ## 功能說明
 
@@ -43,6 +47,8 @@
 | `GlyphPlacement` | 位圖在圖集的位置 + 相對筆位/基線的偏移 + advance |
 | `Rasterizer` | 字形光柵化 |
 | `find_system_font()` | `measure` 模組的系統字型探測（`Option<PathBuf>`） |
+
+另：零相依 PNG 編碼器 `png` 隨遷到 deer-text（`TextEngine::atlas_png()` 需要它）；`deer-gpu` 用 `pub use deer_text::png;` 保留原路徑 —— `deer_gpu::png::encode_rgba` 逐字不變。
 
 ## 使用範例
 

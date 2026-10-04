@@ -80,6 +80,23 @@ cargo run -p deer-gui --example scroll
 > 超出寬度時走**按字元硬切**——結果確定、逐字折行，符合預期；但如果你在英文單詞中間
 > 期待「按詞斷行」，記得原始文本裡要有空格。
 
+## 捲軸與慣性捲動（已落地）
+
+- **可視捲軸**：`scrollbar_geom(viewport, offset, max_scroll)` 給出軌道 + 滑塊幾何
+  （寬度 `SCROLLBAR_W`、貼邊內縮 `SCROLLBAR_INSET`、最小滑塊高 `SCROLLBAR_MIN_THUMB`；
+  內容裝得下 ⇒ 回傳 `None` 不畫）。互動層接線後：**拖滑塊改偏移**，**點軌道空白跳到指標處**並可續拖。
+- **慣性捲動**：滾輪捲動時自動播種慣性（捲多遠滑多遠），但**不會自己捲** ——
+  需要呼叫方顯式驅動：`redraw` 裡調 `advance_inertia(&mut state)` 推進一步，
+  `next_deadline` 用 `inertia_deadline(state)` 排下一次喚醒。真實視窗的完整接線見範例
+  `scroll_inertia_window`。
+
+細節見[版面配置引擎](../../api/layout.md)與[互動層](../../api/interaction.md)。
+
+```sh
+cargo run -p deer-gui --example scroll_bar            # 可視捲軸（離屏自檢）
+cargo run -p deer-gui --features window --example scroll_inertia_window   # 慣性捲動（真視窗）
+```
+
 ## 本節用到的 API
 
 | API | 作用 | 詳細文件 |

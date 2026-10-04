@@ -1,6 +1,6 @@
 # Layout Invariants (I-1 to I-8)
 
-The behavior of `layout()` is defined by eight invariants, **each backed by a corresponding test** (`crates/deer-layout/tests/layout_invariants.rs`). These eight are the layout engine's behavioral contract: when documentation and intuition conflict, the invariants win.
+The behavior of `layout()` is defined by eight invariants, **each backed by a corresponding test** (`crates/deer-core/tests/layout_invariants.rs`). These eight are the layout engine's behavioral contract: when documentation and intuition conflict, the invariants win.
 
 ## At a glance
 
@@ -40,7 +40,7 @@ That's why the Step 3 example gives the root `.w(280.0).h(160.0)` while the canv
 ## How to verify
 
 ```sh
-cargo test -p deer-layout          # full layout invariant assertions (runs without a GPU)
+cargo test -p deer-core          # full layout invariant assertions (runs without a GPU)
 cargo run -p deer-gui --example geometry   # visual example of layout and hit testing
 ```
 

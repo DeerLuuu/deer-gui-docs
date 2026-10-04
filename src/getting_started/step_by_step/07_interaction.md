@@ -50,19 +50,26 @@ impl Counter {
 
 | 事件 | 效果 |
 |---|---|
-| `PointerMoved` | 同步 `hover`（变了才发 `HoverChanged`） |
-| `PointerDown { Left }` | 同步 `hover`；命中的**可聚焦控件** ⇒ 聚焦它；记 `pressed` |
-| `PointerUp { Left }` | 抬起处 == 按下处 ⇒ `Clicked`；无论如何清 `pressed` |
-| `KeyDown { Tab }` | 树序循环焦点（`Shift` 反向）⇒ `FocusChanged` |
+| `PointerMoved` | 同步 `hover`（变了才发 `HoverChanged`）；**捕获中 ⇒ 路由给捕获者**：hover 钉在捕获节点上（T3.7 指针捕获，拖出不换人） |
+| `PointerDown { Left }` | 同步 `hover`；命中的**可聚焦控件** ⇒ 聚焦它；记 `pressed` = **捕获**（按下即捕获，D7） |
+| `PointerUp { Left }` | **按捕获者结算 `Clicked`**（抬起在哪都算 —— 拖出节点/整棵树再抬起仍是它的点击）；释放捕获；落点是选择类组的直接子节点 ⇒ 追加 `SelectionChanged` / `ChipToggled` / `TabChanged`；落点是 `Switch` ⇒ 追加 `Toggled` |
+| `PointerDown { Right }` | **按下即发 `PointerRight`**（T3.3 纯透传：不参与焦点 / `pressed` / `Clicked`；禁用子树不发） |
+| `KeyDown { Tab }` | 树序循环焦点（`Shift` 反向）⇒ `FocusChanged`；焦点从值输入框离开 ⇒ 失焦提交 |
 | `KeyDown { Escape }` | 清焦点 |
-| `KeyDown { Enter }` | 焦点在启用的按钮上 ⇒ `Clicked`（键激活 = 点击） |
+| `KeyDown { Enter }` | 焦点在启用的按钮 ⇒ `Clicked`（键激活 = 点击）；焦点在启用的开关 ⇒ `Clicked` + 翻转；焦点在值输入框 ⇒ **提交**（解析 → 值事件 → 规范化回写） |
+| `KeyDown { Char(' ') }`（= winit 的 Space） | 焦点在启用的开关 ⇒ 与 `Enter` 同一条翻转路径；其余不消费 |
 | `KeyDown { Backspace }` | 焦点是启用的输入框 ⇒ 删**光标前**一个 Unicode 字符（光标退一位） |
 | `TextInput` | 焦点是启用的输入框 ⇒ **插在光标处**（没动过光标时它在末尾） |
 | `KeyDown { Left / Right }` | 焦点是启用的输入框 ⇒ 移动光标，**不发事件** |
-| `FocusChanged { focused: false }` | 窗口失焦：清 `hover` / `pressed`（`focus` / `texts` 不动） |
-| `Wheel { dy }` | `hover` 最近的可滚动祖先偏移 `-dy × 40px`（见第 8 步） |
+| `KeyDown { Up / Down }` | 焦点**不是**输入框时：**几何邻近移动焦点**（T3.1，严格方向；无焦点不定义，到边停） |
+| `KeyDown { PageUp / PageDown / Home / End }` | **按键滚动**（焦点不是输入框时）：焦点容器优先、退 `hover`；翻页 = 视口高，`Home`/`End` 到边 |
+| `KeyDown { repeat: true }` | 与 `false` 同语义（T3.6：能区分；要不要忽略重复由调用方决定） |
+| `ImePreedit` | 预编辑只进聚焦输入框的 `state.preedit` 缓冲（**不进 `texts`**，无双写）；空文本 = 取消；提交走 `TextInput` |
+| `FocusChanged { focused: false }` | 窗口失焦：清 `hover` / `pressed` / 拖动锚点（`focus` / `texts` 不动） |
+| `Wheel { dy }` | `hover` 最近的可滚动祖先偏移 `-dy × 40px` 并**播种惯性**（见第 8 步） |
 
-只有**状态真的变了**才产出事件。右键 / 中键、上下方向键、按键重复、IME 预编辑本期不消费（左右方向键已在输入框内移动光标，见上表；详见[已知边界](../../advanced/pitfalls.md)）。
+只有**状态真的变了**才产出事件。不消费的输入：`KeyUp`、中键、非空格的 `Key::Char`/`Key::Other`、`ScaleFactorChanged`（DPI 只透传，坐标/尺寸不换算）——
+匹配是穷尽的，将来加事件变体会编译报错，不会静默忽略（详见[已知边界](../../advanced/pitfalls.md)）。
 
 ## 命中测试的语义
 

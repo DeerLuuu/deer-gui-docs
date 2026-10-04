@@ -1,6 +1,6 @@
 # The Layout Engine (layout / hit_test)
 
-**Module**: `deer_layout::layout`
+**Module**: `deer-core::layout` (formerly `deer-layout::layout`, 2026-10 layered reorganization)
 
 ## What it does
 
@@ -47,6 +47,32 @@ Two built-in implementations:
 |---|---|---|
 | `ScrollOffsets` (layout's **input**) | `with(id, px)` (chained), `set(id, px)`, `get(id) -> i32`, `ids()`, `iter()` | Unregistered ids ⇒ offset 0 (not "unknown") |
 | `ScrollMetrics` (layout's **output**) | `max_of(id) -> i32`, `clamp(id, px) -> i32`, `ids()`, `iter()` | `max_scroll = max(0, content height − viewport height)`; unregistered ⇒ 0 (fail-closed: if you forget to feed the table, the wheel simply scrolls nothing instead of scrolling into an unbounded void) |
+
+## The L1–L4 layout algebra (levels)
+
+Layout capability is layered in four levels of algebra (each level has its own tests, living in `deer-core/tests/l1_position.rs` ~ `l4_anchors.rs`):
+
+| Level | Content | In one sentence |
+|---|---|---|
+| **L1** | `position` = `Pos::Offset` | Out-of-flow absolute positioning: a child that sets it leaves the flow — it doesn't participate in main-axis distribution, doesn't take up in-flow space, and isn't counted in the parent's intrinsic size; position = parent content-box origin + offset |
+| **L2** | `cross_self` | Per-child cross-axis alignment: overrides the parent container's `cross_axis`, applies to this one in-flow child only |
+| **L3** | `min_w` / `max_w` / `min_h` / `max_h` | Min/max sizes: effective in both measure and place; `min > max` ⇒ min wins |
+| **L4** | `position` = `Pos::Anchors` | Anchors on four edges: if both sides of one axis have anchors ⇒ size is derived from the anchor pair; **when the parent box resizes, the anchored edges follow** |
+
+All four levels are opt-in (default `None` ⇒ existing trees are unchanged byte for byte).
+
+## Scrollbar geometry
+
+The single source **shared** by the draw side (track/thumb) and the hit side (deciding "is the press point on the scrollbar"), all defined in `deer-core::layout`:
+
+| Name | Signature / value | Notes |
+|---|---|---|
+| `SCROLLBAR_W` | `f32 = 8.0` | Scrollbar **track** width (pixels) |
+| `SCROLLBAR_INSET` | `f32 = 2.0` | Gap between the track and the viewport edge (not flush with the border) |
+| `SCROLLBAR_MIN_THUMB` | `f32 = 24.0` | Thumb **minimum** height (still visible and hittable when content is extremely long) |
+| `ScrollbarGeom` | `{ track: Rect, thumb: Rect }` | The scrollbar geometry of one scrollable container (track + thumb) |
+| `scrollbar_geom` | `(viewport: Rect, offset: i32, max_scroll: i32) -> Option<ScrollbarGeom>` | Computes geometry from viewport + current offset + scroll cap; `max_scroll <= 0` ⇒ `None` (no full-track thumb drawn); returns **float** rectangles — rounding is left to the caller (drawing wants integers, hit testing wants floats) |
+| `scrollbar_offset_for_pointer` | `(viewport: Rect, max_scroll: i32, pointer_y: f32, grab_dy: f32) -> i32` | **The inverse**: given the pointer at `pointer_y` and a grab point `grab_dy` pixels below the thumb top, what should the offset be; the two directions of the same mapping as `scrollbar_geom`; the result is clamped to `[0, max_scroll]` |
 
 ## Example
 

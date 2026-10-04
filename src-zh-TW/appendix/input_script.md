@@ -20,11 +20,11 @@
 | `move:X,Y` | 指標移到 `(X, Y)`（f32；貼邊、負數都允許） |
 | `down:left` / `down:right` / `down:middle` | 指標按下（座標 = **最近一次 `move`**；沒 move 過就是 `(0,0)`） |
 | `up:left`（同上三檔） | 指標抬起（座標口徑同 `down`） |
-| `key:Tab` | `KeyDown`。可寫 `Escape` / `Enter` / `Backspace` / `Left` / `Right` / `Up` / `Down` / `Other` / `Char(a)` |
+| `key:Tab` | `KeyDown`。可寫 `Escape` / `Enter` / `Backspace` / `Left` / `Right` / `Up` / `Down` / `PageUp` / `PageDown` / `Home` / `End` / `Other` / `Char(a)`。**鍵名後加 `*`（`key:Tab*`）= 系統按鍵重複**（`repeat: true`，T3.6）；不加 `*` = 普通按下（`repeat: false`） |
 | `shift+key:Tab`（或 `key:shift+Tab`） | 帶修飾鍵：`ctrl+` / `alt+` / `sup+` 同檔，用 `+` 疊加；前綴寫在動詞一側或鍵名一側都行 |
 | `text:hi` | 一段文字輸入（原樣，含空格與中文；是**追加**不是覆蓋） |
 | `focus:off` / `focus:on` | 視窗失焦 / 重新取得焦點（`FocusChanged`） |
-| `wheel:0,3` | 滾輪事件（狀態機本期不消費，可用來驗證「不消費的事件不改狀態」） |
+| `wheel:0,3` | 滾輪事件（`dy` 驅動 `hover` 最近可捲動祖先的垂直捲動並播種慣性，見[第 8 步](../getting_started/step_by_step/08_scroll_wrap.md)；`dx` 水平本期忽略） |
 
 ## API
 
@@ -46,7 +46,10 @@ use deer_gui::interaction::{InputEvent, Key, PointerButton};
 let evs = parse_script("move:10,20; down:left; up:left; key:Tab; text:hi").unwrap();
 assert_eq!(evs.len(), 5);
 assert_eq!(evs[0], InputEvent::PointerMoved { x: 10.0, y: 20.0 });
-assert_eq!(evs[3], InputEvent::KeyDown { key: Key::Tab, mods: Default::default() });
+assert_eq!(
+    evs[3],
+    InputEvent::KeyDown { key: Key::Tab, mods: Default::default(), repeat: false }
+);
 assert_eq!(evs[4], InputEvent::TextInput { text: "hi".to_string() });
 ```
 

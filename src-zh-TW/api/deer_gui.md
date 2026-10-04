@@ -14,9 +14,20 @@
 | `deer_gui::env_gate` | 環境變數門檻判定（先 `trim()` 再比） | 恆有 |
 | `deer_gui::testing` | testkit（`Harness` 等） | `testing` feature 或 `cfg(test)` |
 | `deer_gui::window` | `deer_window` 的 re-export | `window` feature |
-| `deer_gui::gpu` / `::layout` / `::vk` | 下層 crate 的 re-export（`deer_gpu` / `deer_layout` / `deer_vk`） | 恆有 |
+| `deer_gui::gpu` / `::layout` / `::vk` | 下層 crate 的 crate 別名：`gpu` = `deer_gpu`、`layout` = `deer_core`、`vk` = `deer_vk` | 恆有 |
 
-頂層 re-export：`DrawCmd`、`DrawList`、`GpuError`、`GpuResult`、`Theme`、`Node`、`VkBackend`。
+三個 crate 別名由 lib.rs 的一組 `pub use` 定義：
+
+```rust,ignore
+pub use deer_gpu::{ self as gpu, Theme };
+pub use deer_core::{self as layout, Node};
+pub use deer_vk::{self as vk, VkBackend};
+pub use deer_core::{ DrawCmd, DrawList, GpuError, GpuResult };
+```
+
+即頂層 re-export 與別名合起來是：`Theme`、`DrawCmd`、`DrawList`、`GpuError`、`GpuResult`、`Node`、`VkBackend`，加上 `gpu`/`layout`/`vk` 三個別名 —— 注意 **`layout` 別名指向的是 `deer_core`**（版面配置、命中測試、`ScrollMetrics` 等契約都在它裡面），不是某個叫 `deer-layout` 的 crate。
+
+**LY2 說明（prelude 名字不變）**：文字堆疊的實作在 L1 crate `deer-text`（`TextEngine`、`GlyphAtlas` 等），但 `deer_gui::prelude::*` 裡的**名字全部保持不變** —— 門面替你把 `deer_text` 的型別 re-export 進來，下游程式碼一行不用改（`deer_gui::gpu` 別名只覆蓋 deer-gpu 自己的東西，文字型別不在其中）。
 
 ## 便捷渲染函式（參數與回傳值）
 
@@ -27,7 +38,7 @@
 | `render_tree_to_rgba_with_font` | `+ (font_path: &Path, font_size: f32)` | 同 `…_rgba` | **真實字形**（內部建 `TextEngine`） |
 | `render_tree_to_png_with_font` | 同上 | 同 `…_png` | **真實字形** |
 | `render_tree_to_rgba_with_engine` | `+ (font_size: f32, engine: TextEngine)`（複用已解析的字型） | 同 `…_rgba` | 真實字形；`theme.font_size` 會被釘成傳入的 `font_size` |
-| `layout_tree` | `(tree, width, height, theme)` | `Geometry`（id → `Rect`，除錯版面配置用，不出像素） | — |
+| `layout_tree` | `(tree, width, height, theme)` | `layout::layout::Geometry`（id → `Rect`，除錯版面配置用，不出像素；固定走 `ApproxMeasure` 近似度量） | — |
 
 這些入口內部固定走：`layout()`（`ApproxMeasure` 或引擎度量）→ `build_draw_list` → CPU 後端渲染。
 

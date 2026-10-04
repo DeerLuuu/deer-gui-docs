@@ -1,6 +1,6 @@
 # 版面配置引擎（layout / hit_test）
 
-**模組**：`deer_layout::layout`
+**模組**：`deer-core::layout`（原 `deer_layout::layout`，2026-10 分層重組）
 
 ## 功能說明
 
@@ -47,6 +47,32 @@
 |---|---|---|
 | `ScrollOffsets`（版面配置的**輸入**） | `with(id, px)`（鏈式）、`set(id, px)`、`get(id) -> i32`、`ids()`、`iter()` | 沒登記的 id ⇒ 偏移 0（不是「未知」） |
 | `ScrollMetrics`（版面配置的**輸出**） | `max_of(id) -> i32`、`clamp(id, px) -> i32`、`ids()`、`iter()` | `max_scroll = max(0, 內容高 − 視口高)`；沒登記 ⇒ 0（fail-closed：忘了灌表，滾輪就什麼都滾不動，而不是滾進沒有上限的虛空） |
+
+## L1–L4 版面配置代數
+
+版面配置能力按四層代數分層遞進（每層都有獨立測試，住在 `deer-core/tests/l1_position.rs` ~ `l4_anchors.rs`）：
+
+| 層 | 內容 | 一句話 |
+|---|---|---|
+| **L1** | `position` = `Pos::Offset` | 流外絕對定位：設了的子節點脫離流內——不參與主軸分配、不佔流內空間、不計入父固有尺寸；位置 = 父內容盒原點 + 偏移 |
+| **L2** | `cross_self` | 每子節點交叉軸對齊：覆蓋父容器的 `cross_axis`，只對這一個流內子節點生效 |
+| **L3** | `min_w` / `max_w` / `min_h` / `max_h` | 最小/最大尺寸：measure 與 place 兩處都生效；`min > max` ⇒ min 贏 |
+| **L4** | `position` = `Pos::Anchors` | 四邊錨點：一軸兩側都有錨 ⇒ 尺寸由錨點對導出；**父盒子 resize 時錨定邊跟隨** |
+
+四層全部 opt-in（預設 `None` ⇒ 既有樹逐位元組不變）。
+
+## 捲軸幾何
+
+繪製側（畫軌道/滑塊）與命中側（判「按下點在捲軸上」）**共用**的唯一來源，全部定義在 `deer-core::layout`：
+
+| 名稱 | 簽名 / 值 | 說明 |
+|---|---|---|
+| `SCROLLBAR_W` | `f32 = 8.0` | 捲軸**軌道**寬度（像素） |
+| `SCROLLBAR_INSET` | `f32 = 2.0` | 軌道與視口邊緣的間距（不貼著邊框） |
+| `SCROLLBAR_MIN_THUMB` | `f32 = 24.0` | 滑塊**最小**高度（內容極長時仍看得見、點得中） |
+| `ScrollbarGeom` | `{ track: Rect, thumb: Rect }` | 一個可捲動容器的捲軸幾何（軌道 + 滑塊） |
+| `scrollbar_geom` | `(viewport: Rect, offset: i32, max_scroll: i32) -> Option<ScrollbarGeom>` | 由視口 + 目前偏移 + 捲動上限算幾何；`max_scroll <= 0` ⇒ `None`（不畫滿格滑塊）；回傳**浮點**矩形——取整交給呼叫方（繪製要整數、命中要浮點） |
+| `scrollbar_offset_for_pointer` | `(viewport: Rect, max_scroll: i32, pointer_y: f32, grab_dy: f32) -> i32` | **反解**：指標在 `pointer_y`、抓取點距滑塊頂 `grab_dy` 像素時偏移該是多少；與 `scrollbar_geom` 是同一套映射的兩個方向；結果夾在 `[0, max_scroll]` |
 
 ## 使用範例
 

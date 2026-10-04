@@ -81,6 +81,23 @@ cargo run -p deer-gui --example scroll
 > character, and matches expectations; but if you expect "wrapping at word boundaries" in the middle of English words,
 > make sure the source text contains spaces.
 
+## Scrollbar and inertial scrolling (available)
+
+- **Visible scrollbar**: `scrollbar_geom(viewport, offset, max_scroll)` gives the track + thumb geometry
+  (width `SCROLLBAR_W`, edge inset `SCROLLBAR_INSET`, minimum thumb height `SCROLLBAR_MIN_THUMB`;
+  if the content fits ⇒ returns `None` and nothing is drawn). After the interaction-layer wiring: **drag the thumb to change the offset**, and **clicking empty track jumps to the pointer** and can keep dragging.
+- **Inertial scrolling**: wheel scrolling automatically seeds inertia (how far you wheel is how far it slides), but it **does not scroll by itself** —
+  the caller must drive it explicitly: call `advance_inertia(&mut state)` inside `redraw` to advance one step,
+  and use `inertia_deadline(state)` in `next_deadline` to schedule the next wake. For the complete wiring in a real window, see the
+  `scroll_inertia_window` example.
+
+For details, see the [layout engine](../../api/layout.md) and the [interaction layer](../../api/interaction.md).
+
+```sh
+cargo run -p deer-gui --example scroll_bar            # visible scrollbar (offscreen self-check)
+cargo run -p deer-gui --features window --example scroll_inertia_window   # inertial scrolling (real window)
+```
+
 ## APIs used in this step
 
 | API | Purpose | Detailed docs |

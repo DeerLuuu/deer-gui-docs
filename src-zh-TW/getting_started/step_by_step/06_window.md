@@ -98,6 +98,19 @@ cargo run --features window
 啟動與結束時視窗層會列印自證行（「重繪策略」「重繪帳本」「喚醒帳本」）——
 驗收時 grep 那幾行，別只看離開代碼。
 
+## 多視窗已落地
+
+上面是單視窗流程。多視窗（T4.4）也已可用：`WindowSpawner::spawn_window` 動態建新窗、
+`WindowId` 按窗路由生命週期（`window_init` / `window_redraw` / `window_input` / `window_resized` /
+`window_close_requested` / `window_destroyed` 按窗鉤子，預設轉發舊的單窗方法 ⇒ 單視窗 App 零改動）。
+參考範例：
+
+```sh
+DEER_VK_WINDOW_TESTS=1 cargo run -p deer-gui --features window --example dual_window
+```
+
+細節見[視窗層](../../api/window.md)。
+
 ## 「樹怎麼上屏？」
 
 本節只搭了 App 骨架。把介面樹畫進視窗的完整樣板（Vulkan 視窗路徑

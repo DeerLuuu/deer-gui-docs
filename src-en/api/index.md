@@ -8,10 +8,12 @@ In the vast majority of cases, a single `use deer_gui::prelude::*;` gets you all
 | Crate | Responsibility | Docs |
 |---|---|---|
 | `deer-gui` | Facade: re-exports everything + convenient offscreen rendering + the interaction layer + the testkit | [Facade crate](deer_gui.md) |
-| `deer-layout` | Node tree, layout algebra, hit testing, `.dui` scene parsing (**zero platform dependencies**) | [Builder](builder.md) · [Node](node.md) · [Layout](layout.md) · [Scene](scene.md) |
-| `deer-gpu` | GPU HAL, draw list, theme, text engine, CPU reference backend | [Drawing & theme](draw.md) · [Text engine](text.md) |
+| `deer-core` | Node tree, layout algebra (L1–L4), hit testing, `.dui` scene parsing, draw primitives, property registry (**zero platform dependencies**; the former `deer-layout` content moved here) | [Builder](builder.md) · [Node](node.md) · [Layout](layout.md) · [Scene](scene.md) |
+| `deer-text` | Text stack: TTF parsing, rasterization, glyph atlas, metrics, TextEngine (API names unchanged; moved out of deer-gpu in LY2) | [Text engine](text.md) |
+| `deer-gpu` | GPU HAL contracts, DefaultRenderer/CpuRenderer, theme, BMP image decoding | [Drawing & theme](draw.md) |
+| `deer-log` | Zero-dependency logging facade (the `DEER_LOG` switch; completely silent by default) | See the source docs of `crates/deer-log` in the repo |
 | `deer-vk` | The Vulkan backend (self-declared symbols + runtime dynamic loading; no SDK needed) | See the source docs of `crates/deer-vk` in the repo |
-| `deer-window` | Window + event loop (`winit`, the only third-party dependency; the `window` feature) | [Window layer](window.md) |
+| `deer-window` | Window + event loop + multi-window infrastructure (`winit`, the only third-party dependency; the `window` feature) | [Window layer](window.md) |
 
 ## The prelude at a glance
 

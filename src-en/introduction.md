@@ -29,23 +29,35 @@ Both paths produce the **structurally identical** tree — this is the core inva
 | Writing pixels to a PNG file | ✅ |
 | **Real font glyphs** (zero-dependency TTF parsing + rasterization + atlas + real metrics) | ✅ |
 | Rendering to a window / on screen (Vulkan, shapes + text) | ✅ requires the `window` feature |
-| Input and focus (hover / click / `Tab` focus / text input / **input caret** / script replay / event-driven redraws) | ✅ |
+| Input and focus (hover / click / `Tab`/`Escape` focus / text input / input caret / pointer capture / script replay / event-driven redraws) | ✅ |
 | Wheel-driven vertical scrolling, text wrapping to width | ✅ |
-| Docking panels / multi-window, right / middle mouse buttons, arrow-key navigation **between widgets**, IME pre-edit | ⬜ Not implemented |
+| Visible scrollbar (drag the thumb to change offset, click the track to jump) + inertial scrolling (`advance_inertia` wiring) | ✅ |
+| Arrow-key navigation (`Up`/`Down` geometric-proximity focus movement), key scrolling (`PageUp`/`PageDown`/`Home`/`End`) | ✅ |
+| Right-click passthrough (`PointerRight`), key repeat (`repeat: bool`), IME pre-edit | ✅ |
+| M6 widget family first batch (`Segmented`/`ChipGroup`/`TabBar`/`NumberField`/`ScrubNum`/`Switch`/`ColorField`) | ✅ |
+| Multi-window (`WindowId`/`WindowSpawner`, dynamic spawn, Windows only) | ✅ |
+| Clipboard (Windows, `CF_UNICODETEXT` plain text, zero third-party dependencies) | ✅ |
+| Image decoding (BMP → RGBA8; PNG decoding not yet done) | ✅ |
+| DPI scale factor passthrough (passthrough only, no conversion) | ✅ |
+| Logging (`deer-log` zero-dependency facade, `DEER_LOG` switch, fully silent by default) | ✅ |
+| Docking panels dock, full widget family (`Icon`/`DropMenu`/`Dialog`/`Overlay`/`HoverTip`) | ⬜ Not implemented |
+| DX12 / Metal backends, Linux / macOS window layer | ⬜ Not implemented |
 
 Platform support: layout / CPU rasterization / PNG output / Vulkan offscreen work on every platform; **the window layer is currently Windows only** (Linux / macOS return an explicit "platform not supported" error, never silently).
 
 ## Dependencies
 
-Except for the window layer, the whole workspace has **no third-party dependencies**:
+**Zero third-party dependencies except the window layer (`winit`, registered exception).** The workspace is now 7 crates:
 
-| Crate | Third-party dependencies |
-|---|---|
-| `deer-layout` (node tree, layout, scene parsing) | none |
-| `deer-gpu` (GPU HAL + CPU reference backend) | none |
-| `deer-vk` (Vulkan backend, dynamically loaded at runtime) | none |
-| `deer-gui` (facade, without `window`) | none |
-| `deer-window`, `deer-gui --features window` | `winit 0.30` |
+| Crate | Role | Third-party dependencies |
+|---|---|---|
+| `deer-core` | L0 pure core: node tree, layout, scene parsing, hit testing, draw commands, property registry, value parsing | none |
+| `deer-text` | L1 text stack: font parsing, glyph rasterization, atlas, metrics (includes a zero-dependency PNG encoder) | none |
+| `deer-gpu` | L1: GPU HAL traits, `DrawList`, CPU reference backend, interaction rendering helpers, BMP decoding | none |
+| `deer-window` | L1 display service (winit loop / `InputEvent` mapping / DPI / clipboard) + L3 host (`App`/`run`/multi-window) | `winit 0.30` |
+| `deer-vk` | L2 Vulkan backend (dynamically loaded at runtime, no SDK needed) | none |
+| `deer-log` | Cross-cutting logging facade (zero-dependency, ~200 hand-written lines, no `log`/`tracing`) | none |
+| `deer-gui` | L4 facade: re-exports everything + interaction layer + input scripts + testkit | none (`deer-window` is an optional dependency; brings in `winit` via the `window` feature) |
 
 `winit` is the only registered exception (recorded as Q-1 in [`ROADMAP.md`](https://github.com/DeerLuuu/deer-gui/blob/master/ROADMAP.md)).
 

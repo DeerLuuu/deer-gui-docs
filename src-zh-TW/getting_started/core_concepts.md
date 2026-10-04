@@ -20,6 +20,10 @@ deer-gui 的一切都圍繞**一棵 `Node` 樹**運轉。理解這一節，後�
 | 產生繪製命令 | [`build_draw_list`](../api/draw.md) | [`DrawList`](../api/draw.md) |
 | 出像素 / 上屏 | [CPU 後端 `CpuRenderer`](../api/draw.md) 或 [Vulkan 視窗路徑](../api/window.md) | RGBA8 / 交換鏈 |
 
+## workspace 的 7 個 crate
+
+整條鏈由一個 workspace 承載，自下而上分層：`deer-core`（L0，**原 `deer-layout` 的內容全部遷入**——節點樹、版面配置代數、場景解析、命中測試、繪製命令、屬性註冊表、值解析，語言無關零平台相依）、`deer-text`（L1 文字堆疊：字型解析、字形光柵化、圖集、度量）、`deer-gpu`（L1：GPU HAL trait 與 CPU 參考後端）、`deer-window`（L1 顯示服務 + L3 視窗宿主）、`deer-vk`（L2 Vulkan 後端）、`deer-gui`（L4 門面）。另有一個橫切的 `deer-log`（零相依日誌門面）。相依紀律見[架構總覽](../advanced/architecture.md)。
+
 ## 兩條構築路徑，一棵樹
 
 ```rust,ignore
@@ -48,7 +52,9 @@ let tree = app.build();
 2. **樹可以隨便序列化**。`.dui` 文字 ↔ `Node` 的往返是結構相等的（`parse_scene(encode_scene(t)) == t`）；
 3. **版面配置是純函式**。`layout()` 不改輸入樹，只回一張幾何表；同輸入必同輸出（無時間、無隨機、無環境探測）。
 
-## 五種節點類型（Kind）
+## 節點類型（Kind）
+
+`Kind` 現有 **12 種變體**：
 
 | Kind | 角色 | 可否有子節點 |
 |---|---|---|
@@ -57,8 +63,15 @@ let tree = app.build();
 | `Text` | 純文字 | ❌ |
 | `Button` | 按鈕 | ❌ |
 | `Field` | 輸入框 | ❌ |
+| `Segmented` | 分段選擇（互斥單選，段是子按鈕） | ✅ |
+| `ChipGroup` | 標籤組（多選開關，晶片是子節點） | ✅ |
+| `TabBar` | 頁籤欄（單選頁籤） | ✅ |
+| `NumberField` | 數值輸入框（提交才解析） | ❌ |
+| `ScrubNum` | 拖動調值（拖動改數） | ❌ |
+| `Switch` | 開關（點擊/`Enter`/`Space` 翻轉） | ❌ |
+| `ColorField` | 顏色輸入框（`#RRGGBB` + 色塊預覽） | ❌ |
 
-控制項詞彙刻意保持最小 —— 它來自 `deer-ui` 的驗證原型，夠驗證「容器 + 版面配置 + 互動」這條主線。
+控制項詞彙來自 `deer-ui` 的驗證原型；M6 控制項族群仍在擴充（`Icon`、`DropMenu`、`Dialog`、`Overlay`、`HoverTip` 未做，見 [`FEATURES.md`](https://github.com/DeerLuuu/deer-gui/blob/master/FEATURES.md)）。
 
 ## 版面配置引擎的八條不變式
 

@@ -1,6 +1,6 @@
 # 場景檔（parse_scene / encode_scene）
 
-**模組**：`deer_layout::scene`
+**模組**：`deer-core::scene`（原 `deer_layout::scene`，2026-10 分層重組）
 
 ## 功能說明
 
@@ -13,6 +13,7 @@
 | 函式 | 簽名 | 說明 |
 |---|---|---|
 | `parse_scene` | `(src: &str, source: &str) -> Result<Node, SceneError>` | 文字 → 樹；`source` 是出錯時顯示的來源名（通常是檔名） |
+| `parse_scene_collect` | `(src: &str, source: &str) -> Result<(Node, Vec<String>), SceneError>` | 同上，但把**非致命**警告（未知屬性等）一併收集回傳 |
 | `encode_scene` | `(root: &Node) -> String` | 樹 → 文字；`parse_scene(encode_scene(t))` 與 `t` 結構相等（往返不變式有測試） |
 
 ### `SceneError`
@@ -38,7 +39,7 @@
 
 規則：
 
-- 每行一個節點：`[型別 屬性=值 …]`；型別必須是 `column` / `row` / `text` / `button` / `field`；
+- 每行一個節點：`[型別 屬性=值 …]`；型別是 `Kind::as_str()` 的同名小寫串（`column` / `row` / `text` / `button` / `field` / `segmented` / `chip_group` / `tab_bar` / `number_field` / `scrub_num` / `switch` / `color_field`）；
 - **縮排必須是 2 的倍數**，縮排層級即父子關係；
 - 只能有一個根節點；葉子節點下不能再掛子節點；
 - 屬性值含空格 / 引號 / `#` / `=` 時用雙引號：`label="确 定"`。
@@ -51,6 +52,10 @@
 | `w` / `h` | 數字或百分比（`280` / `50%`） | `layout.width` / `layout.height` |
 | `pad` / `gap` | 數字 | `layout.padding` / `layout.gap` |
 | `main` / `cross` | `start` / `center` / `end` / `stretch` | `main_axis` / `cross_axis` |
+| `cross-self` | 同上 | `layout.cross_self`（L2，覆蓋父容器 `cross`） |
+| `min-w` / `max-w` / `min-h` / `max-h` | 數字或百分比 | L3 最小/最大尺寸 |
+| `pos` | `"x,y"` 或 `"anchors:l,t,r,b,ox,oy"`（`-` = 該邊無錨） | `layout.position`（L1 偏移 / L4 錨點，流外定位） |
+| `anchor-l/t/r/b` / `anchor-ox` / `anchor-oy` | 比例（`-` = 無錨）/ 整數像素 | L4 的逐邊拼法（與 `pos=` 二選一，同時出現硬報錯） |
 | `grow` | 數字 | `layout.grow` |
 | `scroll` / `wrap` | **裸屬性**（寫了就為真；**帶值報錯**） | `layout.scroll` / `layout.wrap` |
 | `label` | 字串 | `props.label` |
@@ -77,7 +82,7 @@ assert!(parse_scene(&back, "roundtrip")?.structurally_eq(&tree));
 
 - **開關屬性帶值就報錯**：`scroll=1` 不是「當真」，是 `Err` ——「寫錯了但不生效」屬於最難查的
   bug，解析器寧可大聲失敗（`disabled` 也走這條：它以前默默把任何值當假）；
-- **未知屬性報錯**：可用屬性就是上面那張表；未知**型別**也報錯；
+- **未知屬性：保留 + 警告 + 寫回**（D8）：不丟棄也不報錯，原樣存進 `NodeProps.extra`（裸屬性存 `None`），存檔時寫在已知屬性之後原樣回寫 —— 編輯器往返不能默默吃掉使用者檔案裡的未來欄位；未知**型別**仍報錯；
 - 顯式 `name` 會被 `IdGen` 佔號，自動 id 不會撞上它 —— 與 Builder 同一條規則；
 - 數字屬性必須可解析為 `f32`，否則報錯（帶行號與原文）；
 - 與 Builder 的等價性有測試釘住（`t1_two_authoring_paths_produce_the_same_tree`），

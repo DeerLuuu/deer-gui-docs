@@ -1,6 +1,6 @@
 # 版面配置不變式（I-1 ～ I-8）
 
-`layout()` 的行為由八條不變式定義，**每條都有對應測試**（`crates/deer-layout/tests/layout_invariants.rs`）。這八條是版面配置引擎的行為契約：文件與直覺衝突時，以不變式為準。
+`layout()` 的行為由八條不變式定義，**每條都有對應測試**（`crates/deer-core/tests/layout_invariants.rs`）。這八條是版面配置引擎的行為契約：文件與直覺衝突時，以不變式為準。
 
 ## 一覽
 
@@ -40,7 +40,7 @@
 ## 怎麼驗證
 
 ```sh
-cargo test -p deer-layout          # 版面配置不變式全量斷言（無 GPU 也能跑）
+cargo test -p deer-core          # 版面配置不變式全量斷言（無 GPU 也能跑）
 cargo run -p deer-gui --example geometry   # 版面配置與命中測試的可視範例
 ```
 

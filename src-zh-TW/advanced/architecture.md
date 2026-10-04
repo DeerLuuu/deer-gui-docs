@@ -2,21 +2,33 @@
 
 ## 分層
 
+workspace 共 **7 個 crate**，自下而上 L0–L4：
+
 ```text
 crates/
-├── deer-layout/   語言無關核心：Node 樹、版面配置代數、命中測試、.dui 場景解析
-│                  ── 零平台相依，可在沒有 GPU 的 CI 裡完整斷言
-├── deer-gpu/      GPU HAL：Backend/Device/Swapchain/Frame trait、DrawList、CPU 參考後端
+├── deer-core/     L0 語言無關純核心：節點樹（node）、Builder、版面配置代數（layout）、
+│                  .dui 場景解析（scene）、屬性註冊表（registry）、值解析（values）、
+│                  繪製命令（draw）、錯誤（error）
+│                  ── 零平台相依，可在沒有 GPU 的 CI 裡完整斷言（原 deer-layout 已併入）
+├── deer-text/     L1 文字堆疊：字型解析、字形光柵化、圖集、度量 + 零相依 PNG 編碼器
+│                  ── 文字能力只有一處實作，CPU/GPU 後端共用
+├── deer-gpu/      L1：GPU HAL trait（Backend/Device/Frame/Renderer）、DrawList、
+│                  CPU 參考後端、互動算繪輔助、BMP 解碼（image.rs）
 │                  ── 加一個後端 = 實作一個 trait
-├── deer-vk/       Vulkan 後端：自己宣告 extern 符號 + 執行時動態載入；surface/交換鏈/呈現
+├── deer-window/   L1 顯示服務（display.rs）：winit 事件迴圈、InputEvent 映射、DPI、剪貼簿
+│                  L3 宿主（host.rs）：App/run/Waker/RedrawPolicy、多視窗（WindowId/WindowSpawner）
+│                  ── 唯一引入第三方相依（winit）的地方；只把不透明的 RawWindowHandle 交給渲染層，
+│                     換視窗實作不動渲染層
+├── deer-vk/       L2 Vulkan 後端：自己宣告 extern 符號 + 執行時動態載入；surface/交換鏈/呈現
 │                  ── 不需要 Vulkan SDK（只連結 kernel32，vulkan-1.dll 執行時載入）
-└── deer-window/   視窗層：原生視窗 + 事件迴圈（winit）
-                   ── 唯一引入第三方相依的地方；只把不透明的 RawWindowHandle 交給渲染層，
-                      換視窗實作不動渲染層
+└── deer-gui/      L4 門面：re-export 一切、testkit、輸入腳本（input_script）、離屏算繪便捷入口
+                   ── 見 [API 總覽](../api/index.md)
 ```
 
-`deer-gui` 是**門面**：re-export 一切、提供互動層與 testkit、給出離屏渲染便捷入口
-（見 [API 總覽](../api/index.md)）。
+兩點補充：
+
+- **互動層（`deer_gui::interaction`）的歸屬是 L2 framework**：命中/狀態機/`UiEvent` 這套是框架邏輯，不屬 `deer-core` —— 它住在 `deer-gui` 裡，但是純邏輯（不碰視窗、不碰 GPU），可在無視窗環境單測；
+- **`deer-log` 是橫切的日誌門面**：零相依自研（約 200 行，不引 `log`/`tracing`），分級 + 按 target 過濾 + 寫 stderr，預設完全靜默，全 workspace 共用。
 
 ## 資料流（一幀的閉環）
 
@@ -38,11 +50,13 @@ crates/
 
 | Crate | 第三方相依 |
 |---|---|
-| `deer-layout` | 無 |
+| `deer-core` | 無 |
+| `deer-text` | 無 |
 | `deer-gpu` | 無 |
+| `deer-window` | `winit 0.30` |
 | `deer-vk` | 無（Vulkan 符號手寫宣告 + `LoadLibraryW` 執行時載入，不需要 SDK） |
-| `deer-gui`（不開 `window`） | 無 |
-| `deer-window` / `deer-gui --features window` | `winit 0.30` |
+| `deer-log` | 無（刻意零相依，不引 `log`/`tracing`） |
+| `deer-gui` | 無（`deer-window` 為可選相依；開 `window` feature 時經它引入 `winit`） |
 
 `winit` 是唯一登記在案的例外（[`ROADMAP.md`](https://github.com/DeerLuuu/deer-gui/blob/master/ROADMAP.md) Q-1）。**新增相依必須先在那裡登記並說明理由。**
 

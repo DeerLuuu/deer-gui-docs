@@ -50,19 +50,26 @@ impl Counter {
 
 | Event | Effect |
 |---|---|
-| `PointerMoved` | Syncs `hover` (emits `HoverChanged` only when it changed) |
-| `PointerDown { Left }` | Syncs `hover`; the hit **focusable widget** ⇒ focus it; records `pressed` |
-| `PointerUp { Left }` | Release position == press position ⇒ `Clicked`; clears `pressed` regardless |
-| `KeyDown { Tab }` | Cycles focus in tree order (`Shift` reverses) ⇒ `FocusChanged` |
+| `PointerMoved` | Syncs `hover` (emits `HoverChanged` only when it changed); **during capture ⇒ routed to the captor**: hover is pinned to the captured node (T3.7 pointer capture; dragging out doesn't switch owners) |
+| `PointerDown { Left }` | Syncs `hover`; the hit **focusable widget** ⇒ focus it; records `pressed` = **capture** (capture happens on press, D7) |
+| `PointerUp { Left }` | **Settles `Clicked` against the captor** (releasing anywhere counts — releasing after dragging off the node or the whole tree still counts as its click); releases capture; if the landing point is a direct child of a selection group ⇒ appends `SelectionChanged` / `ChipToggled` / `TabChanged`; if the landing point is a `Switch` ⇒ appends `Toggled` |
+| `PointerDown { Right }` | **Emits `PointerRight` on press** (T3.3 pure passthrough: does not participate in focus / `pressed` / `Clicked`; disabled subtrees don't emit) |
+| `KeyDown { Tab }` | Cycles focus in tree order (`Shift` reverses) ⇒ `FocusChanged`; focus leaving a value input field ⇒ commit on blur |
 | `KeyDown { Escape }` | Clears focus |
-| `KeyDown { Enter }` | Focus on an enabled button ⇒ `Clicked` (keyboard activation = click) |
+| `KeyDown { Enter }` | Focus on an enabled button ⇒ `Clicked` (keyboard activation = click); focus on an enabled switch ⇒ `Clicked` + toggle; focus on a value input field ⇒ **commit** (parse → value event → normalized write-back) |
+| `KeyDown { Char(' ') }` (= winit's Space) | Focus on an enabled switch ⇒ the same toggle path as `Enter`; otherwise not consumed |
 | `KeyDown { Backspace }` | Focus is an enabled field ⇒ deletes the Unicode character **before the caret** (caret moves back) |
 | `TextInput` | Focus is an enabled field ⇒ **inserts at the caret** (which sits at the end unless moved) |
 | `KeyDown { Left / Right }` | Focus is an enabled field ⇒ moves the caret, **emits no event** |
-| `FocusChanged { focused: false }` | Window lost focus: clears `hover` / `pressed` (`focus` / `texts` untouched) |
-| `Wheel { dy }` | Scrolls the nearest scrollable ancestor of `hover` by `-dy × 40px` (see Step 8) |
+| `KeyDown { Up / Down }` | When focus is **not** an input field: **moves focus by geometric proximity** (T3.1, strict direction; undefined with no focus, stops at the edge) |
+| `KeyDown { PageUp / PageDown / Home / End }` | **Key scrolling** (when focus is not an input field): the focused container first, falling back to `hover`; a page = the viewport height, `Home`/`End` jump to the edges |
+| `KeyDown { repeat: true }` | Same semantics as `false` (T3.6: distinguishable; whether to ignore repeats is up to the caller) |
+| `ImePreedit` | Pre-edit only goes into the focused field's `state.preedit` buffer (**not into `texts`**, no double-writing); empty text = cancel; commit goes through `TextInput` |
+| `FocusChanged { focused: false }` | Window lost focus: clears `hover` / `pressed` / drag anchors (`focus` / `texts` untouched) |
+| `Wheel { dy }` | Scrolls the nearest scrollable ancestor of `hover` by `-dy × 40px` and **seeds inertia** (see Step 8) |
 
-Events are only produced when **state really changed**. Right / middle mouse buttons, Up/Down arrow keys, key repeat and IME pre-edit are not consumed in this phase (Left/Right arrow keys now move the caret inside an input field, see the table above; see [Known Limits](../../advanced/pitfalls.md) for details).
+Events are only produced when **state really changed**. Unconsumed inputs: `KeyUp`, the middle button, `Key::Char`/`Key::Other` other than Space, `ScaleFactorChanged` (DPI is passthrough only; coordinates/sizes are not converted) —
+matching is exhaustive, so adding event variants in the future will be a compile error, never silently ignored (see [Known Limits](../../advanced/pitfalls.md) for details).
 
 ## Hit-testing semantics
 

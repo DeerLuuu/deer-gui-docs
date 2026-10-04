@@ -14,9 +14,20 @@ Module map:
 | `deer_gui::env_gate` | Environment-variable gate checks (`trim()` before comparing) | always |
 | `deer_gui::testing` | The testkit (`Harness` etc.) | `testing` feature or `cfg(test)` |
 | `deer_gui::window` | Re-export of `deer_window` | `window` feature |
-| `deer_gui::gpu` / `::layout` / `::vk` | Re-exports of the lower crates (`deer_gpu` / `deer_layout` / `deer_vk`) | always |
+| `deer_gui::gpu` / `::layout` / `::vk` | Crate aliases of the lower crates: `gpu` = `deer_gpu`, `layout` = `deer_core`, `vk` = `deer_vk` | always |
 
-Top-level re-exports: `DrawCmd`, `DrawList`, `GpuError`, `GpuResult`, `Theme`, `Node`, `VkBackend`.
+The three crate aliases are defined by a group of `pub use`s in lib.rs:
+
+```rust,ignore
+pub use deer_gpu::{ self as gpu, Theme };
+pub use deer_core::{self as layout, Node};
+pub use deer_vk::{self as vk, VkBackend};
+pub use deer_core::{ DrawCmd, DrawList, GpuError, GpuResult };
+```
+
+In other words, the top-level re-exports and aliases together are: `Theme`, `DrawCmd`, `DrawList`, `GpuError`, `GpuResult`, `Node`, `VkBackend`, plus the three aliases `gpu`/`layout`/`vk` — note that **the `layout` alias points to `deer_core`** (the layout, hit testing, `ScrollMetrics`, and other contracts all live in it), not to a crate called `deer-layout`.
+
+**LY2 note (prelude names unchanged)**: the text stack's implementation lives in the L1 crate `deer-text` (`TextEngine`, `GlyphAtlas`, etc.), but the **names in `deer_gui::prelude::*` all stay the same** — the facade re-exports the `deer_text` types for you, so downstream code doesn't need a single change (the `deer_gui::gpu` alias only covers deer-gpu's own items; text types are not among them).
 
 ## Convenience rendering functions (parameters & return values)
 
@@ -27,7 +38,7 @@ Top-level re-exports: `DrawCmd`, `DrawList`, `GpuError`, `GpuResult`, `Theme`, `
 | `render_tree_to_rgba_with_font` | `+ (font_path: &Path, font_size: f32)` | same as `…_rgba` | **real glyphs** (builds a `TextEngine` internally) |
 | `render_tree_to_png_with_font` | same | same as `…_png` | **real glyphs** |
 | `render_tree_to_rgba_with_engine` | `+ (font_size: f32, engine: TextEngine)` (reuses an already-parsed font) | same as `…_rgba` | real glyphs; `theme.font_size` gets pinned to the passed `font_size` |
-| `layout_tree` | `(tree, width, height, theme)` | `Geometry` (id → `Rect`, for debugging layout; produces no pixels) | — |
+| `layout_tree` | `(tree, width, height, theme)` | `layout::layout::Geometry` (id → `Rect`, for debugging layout; produces no pixels; always uses `ApproxMeasure` approximate metrics) | — |
 
 Internally these entry points always run: `layout()` (`ApproxMeasure` or engine metrics) → `build_draw_list` → CPU backend rendering.
 

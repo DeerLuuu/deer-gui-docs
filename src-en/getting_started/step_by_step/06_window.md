@@ -99,6 +99,19 @@ At runtime you can force power-saving mode off with the environment variable: `D
 At startup and shutdown the window layer prints self-evidence lines ("redraw policy", "redraw ledger", "wake ledger") —
 when verifying, grep those lines; don't rely on the exit code alone.
 
+## Multi-window is available
+
+The above is the single-window flow. Multi-window (T4.4) is also usable: `WindowSpawner::spawn_window` dynamically creates a new window,
+and `WindowId` routes the lifecycle per window (`window_init` / `window_redraw` / `window_input` / `window_resized` /
+`window_close_requested` / `window_destroyed` per-window hooks, which forward to the old single-window methods by default ⇒ a single-window App needs zero changes).
+Reference example:
+
+```sh
+DEER_VK_WINDOW_TESTS=1 cargo run -p deer-gui --features window --example dual_window
+```
+
+For details, see the [window layer](../../api/window.md).
+
 ## "How does the tree get on screen?"
 
 This section only built the App skeleton. For the complete template of drawing a UI tree into a window (the Vulkan

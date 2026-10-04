@@ -1,6 +1,10 @@
 # The Text Engine & Font Metrics (TextEngine / FontMeasure)
 
-**Module**: `deer_gpu::text` / `deer_gpu::measure`
+**Module**: `deer_text::text` / `deer_text::measure` (2026-10 layered reorganization: the text stack moved from `deer-gpu` into the new crate **deer-text**)
+
+> **Not a single name changed**: the API names and signatures of `TextEngine` / `FontMeasure` / `Rasterizer` / `GlyphAtlas` / `GlyphKey` / `GlyphImage` / `GlyphPlacement` are unchanged; only the crate home moved from `deer-gpu` to `deer-text`; the exports in `deer_gui::prelude::*` also stay the same, so existing `use deer_gui::prelude::*` code needs no changes.
+
+The dependency direction is one-way: `deer-gpu → deer-text → deer-core`, and deer-text has zero third-party dependencies.
 
 ## What it does
 
@@ -43,6 +47,8 @@ Fields: `pub font: &Font`, `pub font_size: f32`.
 | `GlyphPlacement` | The bitmap's position in the atlas + offset relative to the pen position/baseline + advance |
 | `Rasterizer` | Glyph rasterization |
 | `find_system_font()` | System font probing in the `measure` module (`Option<PathBuf>`) |
+
+Also: the zero-dependency PNG encoder `png` moved along to deer-text (`TextEngine::atlas_png()` needs it); `deer-gpu` keeps the original path via `pub use deer_text::png;` — `deer_gpu::png::encode_rgba` is unchanged verbatim.
 
 ## Example
 

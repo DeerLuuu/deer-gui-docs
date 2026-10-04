@@ -1,6 +1,6 @@
 # Scene Files (parse_scene / encode_scene)
 
-**Module**: `deer_layout::scene`
+**Module**: `deer-core::scene` (formerly `deer-layout::scene`, 2026-10 layered reorganization)
 
 ## What it does
 
@@ -13,6 +13,7 @@ Why "indentation + section headers" instead of JSON/TOML: the same family feel a
 | Function | Signature | Notes |
 |---|---|---|
 | `parse_scene` | `(src: &str, source: &str) -> Result<Node, SceneError>` | Text → tree; `source` is the name shown when an error occurs (usually the file name) |
+| `parse_scene_collect` | `(src: &str, source: &str) -> Result<(Node, Vec<String>), SceneError>` | Same as above, but also collects and returns the **non-fatal** warnings (unknown attributes etc.) |
 | `encode_scene` | `(root: &Node) -> String` | Tree → text; `parse_scene(encode_scene(t))` is structurally equal to `t` (the round-trip invariant has a test) |
 
 ### `SceneError`
@@ -38,7 +39,7 @@ Why "indentation + section headers" instead of JSON/TOML: the same family feel a
 
 Rules:
 
-- One node per line: `[type attr=value …]`; the type must be `column` / `row` / `text` / `button` / `field`;
+- One node per line: `[type attr=value …]`; the type is the lowercase name of `Kind::as_str()` (`column` / `row` / `text` / `button` / `field` / `segmented` / `chip_group` / `tab_bar` / `number_field` / `scrub_num` / `switch` / `color_field`);
 - **Indentation must be a multiple of 2**; indentation depth encodes the parent-child relation;
 - There must be exactly one root node; leaves cannot have children;
 - Values containing spaces / quotes / `#` / `=` are wrapped in double quotes: `label="确 定"`.
@@ -51,6 +52,10 @@ Rules:
 | `w` / `h` | number or percentage (`280` / `50%`) | `layout.width` / `layout.height` |
 | `pad` / `gap` | number | `layout.padding` / `layout.gap` |
 | `main` / `cross` | `start` / `center` / `end` / `stretch` | `main_axis` / `cross_axis` |
+| `cross-self` | same as above | `layout.cross_self` (L2, overrides the parent container's `cross`) |
+| `min-w` / `max-w` / `min-h` / `max-h` | number or percentage | L3 min/max sizes |
+| `pos` | `"x,y"` or `"anchors:l,t,r,b,ox,oy"` (`-` = no anchor on that edge) | `layout.position` (L1 offset / L4 anchors, out-of-flow positioning) |
+| `anchor-l/t/r/b` / `anchor-ox` / `anchor-oy` | ratio (`-` = no anchor) / integer pixels | L4's per-edge spelling (mutually exclusive with `pos=`; an error if both appear) |
 | `grow` | number | `layout.grow` |
 | `scroll` / `wrap` | **bare attribute** (present means true; **error if given a value**) | `layout.scroll` / `layout.wrap` |
 | `label` | string | `props.label` |
@@ -77,7 +82,7 @@ assert!(parse_scene(&back, "roundtrip")?.structurally_eq(&tree));
 
 - **Switch attributes error out when given a value**: `scroll=1` is not "treated as true", it's an `Err` —
   "written wrong but silently ineffective" is among the hardest bugs to track down, so the parser prefers to fail loudly (`disabled` follows the same rule: it used to silently treat any value as false);
-- **Unknown attributes error**: the usable attributes are exactly the table above; unknown **types** error too;
+- **Unknown attributes: keep + warn + write back** (D8): they are neither dropped nor an error; they are stored verbatim in `NodeProps.extra` (bare attributes store `None`), and on save they are written back verbatim after the known attributes — an editor round-trip must not silently swallow future fields from user files; unknown **types** still error;
 - An explicit `name` gets reserved in `IdGen`, so auto ids never collide with it — the same rule as the Builder;
 - Numeric attributes must parse as `f32`, otherwise an error (with the line number and original text);
 - Equivalence with the Builder is pinned by a test (`t1_two_authoring_paths_produce_the_same_tree`);

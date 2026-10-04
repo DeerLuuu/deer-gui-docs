@@ -29,23 +29,35 @@
 | 把像素寫成 PNG 檔案 | ✅ |
 | **真實字型字形**（零相依 TTF 解析 + 光柵化 + 圖集 + 真實度量） | ✅ |
 | 算繪到視窗 / 螢幕上（Vulkan，形狀 + 文字） | ✅ 需開 `window` feature |
-| 輸入與焦點（懸停 / 點擊 / `Tab` 焦點 / 文字輸入 / 輸入框游標 / 腳本重放 / 事件驅動重繪） | ✅ |
+| 輸入與焦點（懸停 / 點擊 / `Tab`/`Escape` 焦點 / 文字輸入 / 輸入框游標 / 指標捕獲 / 腳本重放 / 事件驅動重繪） | ✅ |
 | 滾輪驅動的垂直捲動、文字按寬度換行 | ✅ |
-| 停靠面板 / 多視窗、右鍵 / 中鍵、跨控制項的方向鍵導覽、IME 預編輯 | ⬜ 未實作 |
+| 可視捲軸（拖滑塊改偏移、點軌道跳轉）+ 慣性捲動（`advance_inertia` 接線） | ✅ |
+| 方向鍵導航（`Up`/`Down` 幾何鄰近移動焦點）、按鍵捲動（`PageUp`/`PageDown`/`Home`/`End`） | ✅ |
+| 右鍵直通（`PointerRight`）、按鍵重複（`repeat: bool`）、IME 預編輯 | ✅ |
+| M6 控制項族群首批（`Segmented`/`ChipGroup`/`TabBar`/`NumberField`/`ScrubNum`/`Switch`/`ColorField`） | ✅ |
+| 多視窗（`WindowId`/`WindowSpawner`，動態 spawn，僅 Windows） | ✅ |
+| 剪貼簿（Windows，`CF_UNICODETEXT` 純文字，零第三方相依） | ✅ |
+| 圖片解碼（BMP → RGBA8；PNG 解碼未做） | ✅ |
+| DPI 縮放係數傳遞（只傳遞不換算） | ✅ |
+| 日誌（`deer-log` 零相依門面，`DEER_LOG` 開關，預設完全靜默） | ✅ |
+| 停靠面板 dock、控制項族群全量（`Icon`/`DropMenu`/`Dialog`/`Overlay`/`HoverTip`） | ⬜ 未實作 |
+| DX12 / Metal 後端、Linux / macOS 視窗層 | ⬜ 未實作 |
 
 平台支援：版面配置 / CPU 光柵化 / 出 PNG / Vulkan 離屏在任何平台都可用；**視窗層目前只有 Windows**（Linux / macOS 會明確回傳「平台不支援」錯誤，絕不靜默）。
 
 ## 相依
 
-除視窗層外，整個 workspace **沒有第三方相依**：
+**除視窗層（`winit`，已登記）外零第三方相依。** workspace 現為 7 個 crate：
 
-| Crate | 第三方相依 |
-|---|---|
-| `deer-layout`（節點樹、版面配置、場景解析） | 無 |
-| `deer-gpu`（GPU HAL + CPU 參考後端） | 無 |
-| `deer-vk`（Vulkan 後端，執行時動態載入） | 無 |
-| `deer-gui`（門面，不開 `window`） | 無 |
-| `deer-window`、`deer-gui --features window` | `winit 0.30` |
+| Crate | 角色 | 第三方相依 |
+|---|---|---|
+| `deer-core` | L0 純核心：節點樹、版面配置、場景解析、命中測試、繪製命令、屬性註冊表、值解析 | 無 |
+| `deer-text` | L1 文字堆疊：字型解析、字形光柵化、圖集、度量（含零相依 PNG 編碼器） | 無 |
+| `deer-gpu` | L1：GPU HAL trait、`DrawList`、CPU 參考後端、互動算繪輔助、BMP 解碼 | 無 |
+| `deer-window` | L1 顯示服務（winit 迴圈 / `InputEvent` 映射 / DPI / 剪貼簿）+ L3 宿主（`App`/`run`/多視窗） | `winit 0.30` |
+| `deer-vk` | L2 Vulkan 後端（執行時動態載入，不需要 SDK） | 無 |
+| `deer-log` | 橫切日誌門面（零相依自研約 200 行，不引 `log`/`tracing`） | 無 |
+| `deer-gui` | L4 門面：re-export 一切 + 互動層 + 輸入腳本 + testkit | 無（`deer-window` 為可選相依，隨 `window` feature 引入 `winit`） |
 
 `winit` 是唯一登記在案的例外（記錄在 [`ROADMAP.md`](https://github.com/DeerLuuu/deer-gui/blob/master/ROADMAP.md) 的 Q-1）。
 

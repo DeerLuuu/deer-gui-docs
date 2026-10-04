@@ -50,19 +50,26 @@ impl Counter {
 
 | 事件 | 效果 |
 |---|---|
-| `PointerMoved` | 同步 `hover`（變了才發 `HoverChanged`） |
-| `PointerDown { Left }` | 同步 `hover`；命中的**可聚焦控制項** ⇒ 聚焦它；記 `pressed` |
-| `PointerUp { Left }` | 抬起處 == 按下處 ⇒ `Clicked`；無論如何清 `pressed` |
-| `KeyDown { Tab }` | 樹序循環焦點（`Shift` 反向）⇒ `FocusChanged` |
+| `PointerMoved` | 同步 `hover`（變了才發 `HoverChanged`）；**捕獲中 ⇒ 路由給捕獲者**：hover 釘在捕獲節點上（T3.7 指標捕獲，拖出不換人） |
+| `PointerDown { Left }` | 同步 `hover`；命中的**可聚焦控制項** ⇒ 聚焦它；記 `pressed` = **捕獲**（按下即捕獲，D7） |
+| `PointerUp { Left }` | **按捕獲者結算 `Clicked`**（抬起在哪都算 —— 拖出節點/整棵樹再抬起仍是它的點擊）；釋放捕獲；落點是選擇類組的直接子節點 ⇒ 追加 `SelectionChanged` / `ChipToggled` / `TabChanged`；落點是 `Switch` ⇒ 追加 `Toggled` |
+| `PointerDown { Right }` | **按下即發 `PointerRight`**（T3.3 純直通：不參與焦點 / `pressed` / `Clicked`；停用子樹不發） |
+| `KeyDown { Tab }` | 樹序循環焦點（`Shift` 反向）⇒ `FocusChanged`；焦點從值輸入框離開 ⇒ 失焦提交 |
 | `KeyDown { Escape }` | 清焦點 |
-| `KeyDown { Enter }` | 焦點在啟用的按鈕上 ⇒ `Clicked`（鍵啟動 = 點擊） |
-| `KeyDown { Backspace }` | 焦點是啟用的輸入框 ⇒ 刪**游標前**一個 Unicode 字元（游標退一格） |
+| `KeyDown { Enter }` | 焦點在啟用的按鈕 ⇒ `Clicked`（鍵啟動 = 點擊）；焦點在啟用的開關 ⇒ `Clicked` + 翻轉；焦點在值輸入框 ⇒ **提交**（解析 → 值事件 → 正規化回寫） |
+| `KeyDown { Char(' ') }`（= winit 的 Space） | 焦點在啟用的開關 ⇒ 與 `Enter` 同一條翻轉路徑；其餘不消費 |
+| `KeyDown { Backspace }` | 焦點是啟用的輸入框 ⇒ 刪**游標前**一個 Unicode 字元（游標退一位） |
 | `TextInput` | 焦點是啟用的輸入框 ⇒ **插在游標處**（沒動過游標時它在末尾） |
 | `KeyDown { Left / Right }` | 焦點是啟用的輸入框 ⇒ 移動游標，**不發事件** |
-| `FocusChanged { focused: false }` | 視窗失焦：清 `hover` / `pressed`（`focus` / `texts` 不動） |
-| `Wheel { dy }` | `hover` 最近的可捲動祖先偏移 `-dy × 40px`（見第 8 步） |
+| `KeyDown { Up / Down }` | 焦點**不是**輸入框時：**幾何鄰近移動焦點**（T3.1，嚴格方向；無焦點不定義，到邊停） |
+| `KeyDown { PageUp / PageDown / Home / End }` | **按鍵捲動**（焦點不是輸入框時）：焦點容器優先、退 `hover`；翻頁 = 視口高，`Home`/`End` 到邊 |
+| `KeyDown { repeat: true }` | 與 `false` 同語義（T3.6：能區分；要不要忽略重複由呼叫方決定） |
+| `ImePreedit` | 預編輯只進聚焦輸入框的 `state.preedit` 緩衝（**不進 `texts`**，無雙寫）；空文字 = 取消；提交走 `TextInput` |
+| `FocusChanged { focused: false }` | 視窗失焦：清 `hover` / `pressed` / 拖動錨點（`focus` / `texts` 不動） |
+| `Wheel { dy }` | `hover` 最近的可捲動祖先偏移 `-dy × 40px` 並**播種慣性**（見第 8 步） |
 
-只有**狀態真的變了**才產出事件。右鍵 / 中鍵、上下方向鍵、按鍵重複、IME 預編輯本期不消費（左右方向鍵已在輸入框內移動游標，見上表；詳見[已知邊界](../../advanced/pitfalls.md)）。
+只有**狀態真的變了**才產出事件。不消費的輸入：`KeyUp`、中鍵、非空格的 `Key::Char`/`Key::Other`、`ScaleFactorChanged`（DPI 只傳遞，座標/尺寸不換算）——
+匹配是窮舉的，將來加事件變體會編譯報錯，不會靜默忽略（詳見[已知邊界](../../advanced/pitfalls.md)）。
 
 ## 命中測試的語義
 
